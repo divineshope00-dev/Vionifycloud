@@ -1,0 +1,8 @@
+{
+  "name": "Vionify 07/05/2026",
+  "description": "Plateforme de vidéos produits 16:9 pour entreprises et particuliers. Découvrez et vendez des produits via des vidéos courtes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
