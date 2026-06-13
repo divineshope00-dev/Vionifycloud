@@ -69,6 +69,12 @@ export interface Favorite {
   added_at: string;
 }
 
+export interface ProductFavorite {
+  user_id: string;
+  product_id: string;
+  added_at: string;
+}
+
 export interface Comment {
   id: string;
   videoId: string;
@@ -1222,6 +1228,90 @@ export const db = {
       .maybeSingle();
 
     return !!data;
+  },
+
+  toggleProductFavorite: async (userId: string, productId: string) => {
+    const { data: existing } = await supabase
+      .from('product_favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('product_id', productId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from('product_favorites').delete().eq('user_id', userId).eq('product_id', productId);
+    } else {
+      await supabase.from('product_favorites').insert([{ user_id: userId, product_id: productId }]);
+    }
+  },
+
+  getProductFavorites: async (userId: string) => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      // Auto-delete older than 30 days
+      await supabase
+        .from('product_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .lt('created_at', thirtyDaysAgo.toISOString());
+
+      const { data, error } = await supabase
+        .from('product_favorites')
+        .select('product_id, created_at, products(*)')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error fetching product favorites:', error);
+        return [];
+      }
+      
+      return (data || [])
+        .filter(f => f.products) // Ensure the joined product exists
+        .map(f => {
+          const p = f.products as any;
+          return {
+            id: p.id,
+            video_id: p.video_id,
+            title: p.title,
+            imageUrl: p.image_url,
+            link: p.link,
+            price: p.price,
+            discount: p.discount,
+            clicks: p.clicks || 0,
+            added_at: f.created_at
+          };
+        });
+    } catch (err) {
+      console.error('Catch in getProductFavorites:', err);
+      return [];
+    }
+  },
+
+  isProductFavorite: async (userId: string, productId: string) => {
+    const { data } = await supabase
+      .from('product_favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('product_id', productId)
+      .maybeSingle();
+
+    if (!data) return false;
+
+    const dateStr = data.created_at;
+    if (dateStr) {
+      const addedDate = new Date(dateStr);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      if (addedDate < thirtyDaysAgo) {
+        await supabase.from('product_favorites').delete().eq('user_id', userId).eq('product_id', productId);
+        return false;
+      }
+    }
+
+    return true;
   },
 
   uploadFile: async (bucket: string, path: string, file: File | Blob) => {

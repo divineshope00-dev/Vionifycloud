@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ShoppingBag, Share2, ChevronLeft, Search, X, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Share2, ChevronLeft, Search, X, ChevronRight, Heart } from 'lucide-react';
 import { db, Product, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { CATEGORIES } from '../constants';
@@ -16,6 +16,7 @@ export default function Shopping() {
   const { t } = useLanguage();
   const [products, setProducts] = useState<ProductWithVideo[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<ProductWithVideo[]>([]);
+  const [favoriteProductIds, setFavoriteProductIds] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -42,9 +43,15 @@ export default function Shopping() {
 
       setProducts(allProducts);
       setFilteredProducts(allProducts);
+
+      // Load favorites
+      if (user && user.type === 'particulier') {
+        const favs = await db.getProductFavorites(user.id);
+        setFavoriteProductIds(new Set(favs.map(f => f.id)));
+      }
     };
     loadProducts();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     let result = products;
@@ -97,6 +104,25 @@ export default function Shopping() {
       navigator.clipboard.writeText(shareUrl);
       alert('Lien copié dans le presse-papier !');
     }
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, productId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user || user.type !== 'particulier') return;
+
+    await db.toggleProductFavorite(user.id, productId);
+    
+    setFavoriteProductIds(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -210,6 +236,7 @@ export default function Shopping() {
             const finalPrice = product.discount 
               ? product.price * (1 - product.discount / 100) 
               : product.price;
+            const isLiked = favoriteProductIds.has(product.id);
 
             return (
               <div key={`${product.id}-${index}`} className="flex flex-col gap-1.5 group">
@@ -237,6 +264,16 @@ export default function Shopping() {
                     <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
                       -{product.discount}%
                     </div>
+                  )}
+                  
+                  {/* Heart Button Overlay */}
+                  {user && user.type === 'particulier' && (
+                    <button 
+                      onClick={(e) => toggleFavorite(e, product.id)}
+                      className="absolute top-1 left-1 p-1.5 bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md transition-all group-hover:scale-110"
+                    >
+                      <Heart className={`w-3.5 h-3.5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                    </button>
                   )}
                   
                   {/* Price Overlay */}

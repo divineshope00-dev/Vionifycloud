@@ -92,8 +92,13 @@ export const translations = {
     // Library
     'library.title': 'Ma Bibliothèque',
     'library.expireNote': 'Les favoris expirent après 30 jours',
-    'library.remove': 'Retirer des favoris',
+    'library.remove': 'Retirer',
     'library.empty': 'Vous n\'avez pas encore de vidéos en favoris.',
+    'library.tabs.videos': 'Vidéos',
+    'library.tabs.achats': 'Achats',
+    'library.achats.viewSite': 'Voir le site',
+    'library.achats.empty': 'Aucun produit enregistré.',
+    'library.achats.collection': 'Collection de produits',
     
     // Profile
     'profile.title': 'Mon Profil',
@@ -171,6 +176,10 @@ export const translations = {
     'club.access.desc': 'Le Club est un espace exclusif pour nos membres fondateurs. Rejoignez-nous pour débloquer des avantages uniques et soutenir l\'innovation sur Vionify.',
     'club.access.button': 'Devenir Membre Fondateur',
     'club.status.founder': 'Membre Fondateur',
+    'club.partners.title': 'Profiter des réductions de nos partenaires',
+    'club.trial.info': 'Profitez de vos 30 jours d\'accès gratuit au Club ! 💎',
+    'club.trial.expired.title': 'Accès Club Expiré',
+    'club.trial.expired.desc': 'Vos 30 jours d\'accès gratuit sont terminés. Abonnez-vous maintenant pour continuer à profiter de tous les avantages du club.',
     'club.welcome': 'Bienvenue dans le Cercle, {{name}} ! 🏆',
     'club.subtitle': 'Vous faites partie des pionniers qui façonnent l\'avenir de Vionify. Voici vos privilèges exclusifs.',
     'club.feat.badge.title': 'Badge Exclusif Activé',
@@ -572,8 +581,13 @@ export const translations = {
     // Library
     'library.title': 'My Library',
     'library.expireNote': 'Favorites expire after 30 days',
-    'library.remove': 'Remove from favorites',
+    'library.remove': 'Remove',
     'library.empty': 'You don\'t have any favorite videos yet.',
+    'library.tabs.videos': 'Videos',
+    'library.tabs.achats': 'Purchases',
+    'library.achats.viewSite': 'View site',
+    'library.achats.empty': 'No products saved.',
+    'library.achats.collection': 'Product collection',
     
     // Profile
     'profile.title': 'My Profile',
@@ -651,6 +665,10 @@ export const translations = {
     'club.access.desc': 'The Club is an exclusive space for our founding members. Join us to unlock unique benefits and support innovation on Vionify.',
     'club.access.button': 'Become a Founding Member',
     'club.status.founder': 'Founding Member',
+    'club.partners.title': 'Enjoy our partners\' discounts',
+    'club.trial.info': 'Enjoy your 30 days of free Club access! 💎',
+    'club.trial.expired.title': 'Club Access Expired',
+    'club.trial.expired.desc': 'Your 30 days of free access have ended. Subscribe now to continue enjoying all the club\'s benefits.',
     'club.welcome': 'Welcome to the Circle, {{name}} ! 🏆',
     'club.subtitle': 'You are among the pioneers shaping the future of Vionify. Here are your exclusive privileges.',
     'club.feat.badge.title': 'Exclusive Badge Activated',

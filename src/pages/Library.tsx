@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, Link, useNavigate } from 'react-router-dom';
 import { Lock, Play, MoreVertical, Trash2, Edit, HeartOff, ShoppingBag, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { db, User, Video, getBunnyUrl, VideoQuality } from '../services/supabaseService';
+import { db, User, Video, getBunnyUrl, VideoQuality, Product } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
 
 const LibraryVideo: React.FC<{ video: Video, user: User, onClick: () => void, onRemove: (id: string) => void, quality?: VideoQuality }> = ({ video, user, onClick, onRemove, quality = '720p' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { t } = useLanguage();
   const [duration, setDuration] = useState<number>(0);
   const currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
 
@@ -39,6 +40,7 @@ const LibraryVideo: React.FC<{ video: Video, user: User, onClick: () => void, on
             className="w-full h-full object-cover"
             muted
             playsInline
+            preload="metadata"
             onLoadedMetadata={handleLoadedMetadata}
           />
         ) : (
@@ -50,7 +52,7 @@ const LibraryVideo: React.FC<{ video: Video, user: User, onClick: () => void, on
             )}
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="text-white font-medium px-4 py-2 bg-black/60 rounded-lg backdrop-blur-sm">
-                Collection de produits
+                {t('library.achats.collection')}
               </span>
             </div>
           </div>
@@ -112,7 +114,7 @@ const LibraryVideo: React.FC<{ video: Video, user: User, onClick: () => void, on
               className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] px-2 py-1 rounded-full font-medium transition-colors"
             >
               <ExternalLink className="w-3 h-3" />
-              Découvrir
+              {t('home.discover')}
             </a>
           </div>
         </div>
@@ -140,13 +142,19 @@ export default function Library() {
   const { t } = useLanguage();
   const adaptiveQuality = useAdaptiveQuality();
   const [favorites, setFavorites] = useState<Video[]>([]);
+  const [productFavorites, setProductFavorites] = useState<Product[]>([]);
+  const [activeTab, setActiveTab] = useState<'videos' | 'products'>('videos');
   const hasAccess = canAccessContent(user);
 
   useEffect(() => {
     const loadFavorites = async () => {
       if (user.type === 'particulier') {
-        const favs = await db.getFavorites(user.id);
-        setFavorites(favs.filter(v => v.videoUrl && v.videoUrl.trim() !== ''));
+        const [favVideos, favProducts] = await Promise.all([
+          db.getFavorites(user.id),
+          db.getProductFavorites(user.id)
+        ]);
+        setFavorites(favVideos.filter(v => v.videoUrl && v.videoUrl.trim() !== ''));
+        setProductFavorites(favProducts);
       }
     };
     loadFavorites();
@@ -155,6 +163,11 @@ export default function Library() {
   const handleRemoveFavorite = async (videoId: string) => {
     await db.toggleFavorite(user.id, videoId);
     setFavorites(favorites.filter(v => v.id !== videoId));
+  };
+
+  const handleRemoveProductFavorite = async (productId: string) => {
+    await db.toggleProductFavorite(user.id, productId);
+    setProductFavorites(productFavorites.filter(p => p.id !== productId));
   };
 
   if (!hasAccess) {
@@ -177,27 +190,100 @@ export default function Library() {
     <div className="p-4 md:p-8 pt-[calc(env(safe-area-inset-top)+1rem)] md:pt-[calc(env(safe-area-inset-top)+2rem)] max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
         <h1 className="text-2xl font-bold">{t('library.title')}</h1>
-        <span className="text-sm text-zinc-500 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
-          {t('library.expireNote')}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-zinc-500 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
+            {t('library.expireNote')}
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-        {favorites.map((video) => (
-          <LibraryVideo 
-            key={video.id} 
-            video={video} 
-            user={user}
-            onClick={() => navigate(`/app/video/${video.id}`)} 
-            onRemove={handleRemoveFavorite} 
-            quality={adaptiveQuality}
-          />
-        ))}
+      <div className="flex gap-4 mb-6 border-b border-zinc-800">
+        <button 
+          onClick={() => setActiveTab('videos')}
+          className={`pb-2 px-1 text-sm font-medium transition-colors relative ${activeTab === 'videos' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          {t('library.tabs.videos')}
+          {activeTab === 'videos' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />}
+        </button>
+        <button 
+          onClick={() => setActiveTab('products')}
+          className={`pb-2 px-1 text-sm font-medium transition-colors relative ${activeTab === 'products' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          {t('library.tabs.achats')}
+          {activeTab === 'products' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />}
+        </button>
       </div>
 
-      {favorites.length === 0 && (
-        <div className="text-center py-20 text-zinc-500">
-          {t('library.empty')}
+      {activeTab === 'videos' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          {favorites.map((video) => (
+            <LibraryVideo 
+              key={video.id} 
+              video={video} 
+              user={user}
+              onClick={() => navigate(`/app/video/${video.id}`)} 
+              onRemove={handleRemoveFavorite} 
+              quality={adaptiveQuality}
+            />
+          ))}
+          {favorites.length === 0 && (
+            <div className="col-span-full text-center py-20 text-zinc-500">
+              {t('library.empty')}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          {productFavorites.map((product) => {
+            const finalPrice = product.discount 
+              ? product.price * (1 - product.discount / 100) 
+              : product.price;
+
+            return (
+              <div key={product.id} className="group flex flex-col gap-2">
+                <div className="relative aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden shadow-lg">
+                  <a href={product.link} target="_blank" rel="noopener noreferrer">
+                    <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  </a>
+                  
+                  {product.discount && (
+                    <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                      -{product.discount}%
+                    </div>
+                  )}
+
+                  <button 
+                    onClick={() => handleRemoveProductFavorite(product.id)}
+                    className="absolute top-1 left-1 p-1.5 bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md transition-all"
+                    title={t('library.remove')}
+                  >
+                    <HeartOff className="w-3.5 h-3.5 text-red-400" />
+                  </button>
+
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 p-2">
+                    <div className="text-purple-400 font-bold text-xs text-center">{finalPrice.toFixed(2)}€</div>
+                  </div>
+                </div>
+                <div className="px-1 min-w-0">
+                  <p className="text-xs text-zinc-300 truncate font-medium">{product.title}</p>
+                  <a 
+                    href={product.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="mt-1 flex items-center gap-1 text-[10px] text-zinc-500 hover:text-purple-400 transition-colors"
+                  >
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    {t('library.achats.viewSite')}
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+          {productFavorites.length === 0 && (
+            <div className="col-span-full text-center py-20 text-zinc-500">
+              {t('library.achats.empty')}
+            </div>
+          )}
         </div>
       )}
     </div>

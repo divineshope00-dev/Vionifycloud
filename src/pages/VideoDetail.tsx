@@ -37,6 +37,7 @@ const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick 
             className="w-full h-full object-cover" 
             muted 
             playsInline 
+            preload="metadata"
             onLoadedMetadata={handleLoadedMetadata}
           />
         ) : (

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Bot, Crown, Image as ImageIcon, Loader2, Play, Download, PlusSquare, ArrowRight } from 'lucide-react';
+import { Bot, Crown, Image as ImageIcon, Loader2, Play, Download, PlusSquare, ArrowRight, Scissors } from 'lucide-react';
 import { User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -199,6 +199,7 @@ export default function VideoIA() {
             <span>{t('videoia.remaining.prompts')} <strong className="text-zinc-300">{quota.promptsRemaining}</strong></span>
           </div>
 
+
         </div>
 
         {/* Right Column: Result */}
@@ -228,22 +229,24 @@ export default function VideoIA() {
           </div>
 
           {generatedVideo && (
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <button 
-                onClick={handleDownload}
-                className="py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-5 h-5" />
-                {t('videoia.download')}
-              </button>
-              <button 
-                onClick={handlePublish}
-                className="py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20"
-              >
-                <PlusSquare className="w-5 h-5" />
-                {t('videoia.publish')}
-              </button>
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                <button 
+                  onClick={handleDownload}
+                  className="py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" />
+                  {t('videoia.download')}
+                </button>
+                <button 
+                  onClick={handlePublish}
+                  className="py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20"
+                >
+                  <PlusSquare className="w-5 h-5" />
+                  {t('videoia.publish')}
+                </button>
+              </div>
+            </>
           )}
         </div>
 

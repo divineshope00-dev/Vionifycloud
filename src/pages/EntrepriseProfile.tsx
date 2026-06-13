@@ -63,9 +63,9 @@ const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => voi
           src={currentUrl} 
           className="w-full h-full object-cover"
           playsInline
-          autoPlay
           loop
           muted={isMuted}
+          preload="metadata"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
         />

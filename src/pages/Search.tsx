@@ -39,6 +39,7 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
             className="w-full h-full object-cover"
             muted
             playsInline
+            preload="metadata"
             onLoadedMetadata={handleLoadedMetadata}
           />
         ) : (

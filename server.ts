@@ -138,7 +138,12 @@ async function startServer() {
         status = 'FAILED';
       }
 
-      res.json({ status, videoUrl, progress: task.progress });
+      let progress = 0;
+      if ('progress' in task) {
+         progress = task.progress || 0;
+      }
+
+      res.json({ status, videoUrl, progress });
     } catch (error: any) {
       console.error('Runway Status Error:', error);
       res.status(500).json({ error: error.message || 'Error fetching status' });

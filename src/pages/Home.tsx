@@ -111,6 +111,7 @@ const FeedVideo: React.FC<{
           playsInline
           loop
           muted={isMuted}
+          preload={isPlaying ? "auto" : "none"}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
         />
