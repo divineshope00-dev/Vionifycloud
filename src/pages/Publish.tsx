@@ -362,15 +362,15 @@ export default function Publish() {
               <AlertCircle className="w-12 h-12 text-amber-500 mb-4" />
               <p className="text-zinc-300 font-medium">Abonnement Premium Requis</p>
               <p className="text-zinc-500 text-sm mt-2">
-                Vous n'avez pas l'abonnement standard pour importer des vidéos depuis votre appareil. Vous pouvez publier des vidéos générées par IA via Vionify Video IA.
+                Vous n'avez pas l'abonnement standard pour importer des vidéos depuis votre appareil. {/* Vous pouvez publier des vidéos générées par IA via Vionify Video IA. */}
               </p>
-              <button 
+              {/* <button 
                 type="button"
                 onClick={() => navigate('/app/video-ia')}
                 className="mt-4 px-4 py-2 bg-amber-500/20 text-amber-500 rounded-lg hover:bg-amber-500/30 transition-colors"
               >
                 Générer avec l'IA
-              </button>
+              </button> */}
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import { db, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isTrialExpired, hasActiveSubscription } from '../utils/subscription';
 import EnterpriseOnboarding from './EnterpriseOnboarding';
+import CornerAssistant from './CornerAssistant';
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -120,7 +121,7 @@ export default function MainLayout() {
     ...(isEntreprise 
       ? [
           { path: '/app/publish', icon: PlusSquare, label: t('nav.publish') },
-          { path: '/app/video-ia', icon: Wand2, label: 'VideoIA' }
+          // { path: '/app/video-ia', icon: Wand2, label: 'VideoIA' }
         ]
       : [
           { path: '/app/library', icon: LibraryIcon, label: t('nav.library') },
@@ -133,6 +134,9 @@ export default function MainLayout() {
 
   return (
     <div className="h-[100dvh] bg-black text-white flex flex-col overflow-hidden select-none">
+      {/* Corner AI Assistant - Only for Particulier */}
+      {!isEntreprise && <CornerAssistant />}
+
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0 md:pl-24 overscroll-none scroll-smooth">
         <div className="max-w-[2000px] mx-auto min-h-full">

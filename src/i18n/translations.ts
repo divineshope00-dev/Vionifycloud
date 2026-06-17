@@ -192,6 +192,12 @@ export const translations = {
     'club.feat.innovation.desc': 'Votre contribution finance directement le développement de nouvelles fonctionnalités révolutionnaires.',
     'club.footer.title': 'Plus de surprises arrivent... 🎁',
     'club.footer.desc': 'Nous travaillons sur des partenariats exclusifs et des fonctionnalités réservées aux membres du Club. Restez à l\'écoute !',
+    
+    // Corner Assistant
+    'corner.welcome': 'Bonjour ! Je suis Corner, votre assistant expert Vionify. Que puis-je faire pour vous aujourd\'hui ? 🌸',
+    'corner.placeholder': 'Posez votre question sur Vionify...',
+    'corner.error.scope': 'Désolé, je ne peux répondre qu\'aux questions concernant Vionify ou vous donner des conseils sur nos vidéos et produits.',
+    'corner.error.generic': 'Désolé, une erreur est survenue lors de la communication avec Corner.',
 
     // Premium Founder
     'premium.founder.welcome': 'Bienvenue dans le Cercle, {{name}} ! 🏆',
@@ -681,6 +687,12 @@ export const translations = {
     'club.feat.innovation.desc': 'Your contribution directly funds the development of revolutionary new features.',
     'club.footer.title': 'More surprises coming... 🎁',
     'club.footer.desc': 'We are working on exclusive partnerships and features reserved for Club members. Stay tuned!',
+    
+    // Corner Assistant
+    'corner.welcome': 'Hello! I am Corner, your expert Vionify assistant. How can I help you today? 🌸',
+    'corner.placeholder': 'Ask your question about Vionify...',
+    'corner.error.scope': 'Sorry, I can only answer questions about Vionify or give you advice on our videos and products.',
+    'corner.error.generic': 'Sorry, an error occurred while calling Corner.',
 
     // Premium Founder
     'premium.founder.welcome': 'Welcome to the Circle, {{name}} ! 🏆',

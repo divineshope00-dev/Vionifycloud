@@ -30,35 +30,30 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-red-500/30 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl shadow-red-900/10">
-        <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-          <AlertTriangle className="w-10 h-10 text-red-500" />
+    <div className="min-h-[80vh] flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Ambient background effect */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-600/10 blur-[130px] rounded-full pointer-events-none" />
+      
+      <div className="bg-zinc-900/40 backdrop-blur-2xl border border-white/10 rounded-[40px] p-10 max-w-md w-full text-center shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10">
+        <div className="w-24 h-24 bg-gradient-to-br from-red-500/20 to-red-600/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
+          <AlertTriangle className="w-12 h-12 text-red-500" />
         </div>
         
-        <h2 className="text-2xl font-bold text-white mb-4">
+        <h2 className="text-2xl font-bold text-white mb-4 uppercase tracking-tight">
           {t('subscription.guard.title')}
         </h2>
         
-        <p className="text-zinc-400 mb-8 leading-relaxed">
-          Votre période d'essai ou votre abonnement a expiré. Pour continuer, choisissez un de nos forfaits.
+        <p className="text-zinc-400 mb-10 leading-relaxed text-sm font-medium">
+          {t('subscription.guard.desc')}
         </p>
 
         <div className="space-y-4">
           <button
             onClick={() => navigate('/app/premium')}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
           >
-            <Crown className="w-5 h-5" />
-            Abonnement Standard
-          </button>
-          
-          <button
-            onClick={() => navigate('/app/video-ia')}
-            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black py-4 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
-          >
-            <Bot className="w-5 h-5" />
-            Vionify Video IA
+            <Crown className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <span className="text-base">{t('subscription.guard.button')}</span>
           </button>
         </div>
       </div>

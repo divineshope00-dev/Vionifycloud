@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { Check, Crown, AlertTriangle, Loader2, Star, Zap, Gift, Shield, Radio } from 'lucide-react';
 import { db, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { motion } from 'motion/react';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { isTrialExpired as checkTrialExpired } from '../utils/subscription';
 
@@ -181,15 +182,24 @@ export default function Premium() {
   return (
     <div className="p-4 md:p-8 pt-[calc(env(safe-area-inset-top)+1rem)] md:pt-[calc(env(safe-area-inset-top)+2rem)] max-w-5xl mx-auto">
       {isTrialExpired && !hasActiveSubscription && (
-        <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-6 mb-8 flex items-start gap-4">
-          <AlertTriangle className="w-8 h-8 text-red-500 shrink-0" />
-          <div>
-            <h2 className="text-xl font-bold text-red-500 mb-2">{t('premium.expired.title')}</h2>
-            <p className="text-red-200">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-[32px] p-8 mb-12 flex flex-col items-center text-center shadow-[0_0_50px_rgba(239,68,68,0.1)] gap-6"
+        >
+          <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-red-500/10 blur-3xl rounded-full" />
+          
+          <div className="bg-red-500/20 p-4 rounded-2xl border border-red-500/30">
+            <AlertTriangle className="w-10 h-10 text-red-500" />
+          </div>
+          
+          <div className="max-w-xl">
+            <h2 className="text-xl font-bold text-red-500 mb-2 uppercase tracking-tight">{t('premium.expired.title')}</h2>
+            <p className="text-red-200/80 leading-relaxed text-sm font-medium">
               {isEntreprise ? t('premium.expired.desc.entreprise') : t('premium.expired.desc.particulier')}
             </p>
           </div>
-        </div>
+        </motion.div>
       )}
 
       <div className="text-center mb-12">

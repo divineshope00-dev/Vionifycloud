@@ -40,7 +40,6 @@ export default function Club() {
     { name: '123Optique', logo: 'https://logo.clearbit.com/123optic.com?size=256', link: 'https://sovrn.co/y220dbi' },
     { name: '1Up nutrition', logo: 'https://logo.clearbit.com/1upnutrition.com?size=256', link: 'https://sovrn.co/132pdg7' },
     { name: '2Jeux', logo: 'https://logo.clearbit.com/2jeux.fr?size=256', link: 'https://sovrn.co/k9joiln' },
-    { name: '20Cookbooks', logo: 'https://logo.clearbit.com/20cookbooks.com?size=256', link: 'https://sovrn.co/w0w2ux9' },
     { name: '247Tikets Global', logo: 'https://logo.clearbit.com/247tickets.com?size=256', link: 'https://sovrn.co/1jf85qs' },
     { name: 'Manicure en 14 jours', logo: 'https://logo.clearbit.com/14daymanicure.com?size=256', link: 'https://sovrn.co/14ljti5' },
     { name: 'Supplement Needs', logo: 'https://logo.clearbit.com/supplementneeds.co.uk?size=256', link: 'https://sovrn.co/1otpooi' },
@@ -49,31 +48,35 @@ export default function Club() {
     { name: 'TripAdvisor', logo: 'https://logo.clearbit.com/tripadvisor.com?size=256', link: 'https://sovrn.co/614x2m0' },
     { name: 'Tuango', logo: 'https://logo.clearbit.com/tuango.ca?size=256', link: 'https://sovrn.co/19rj3z0' },
     { name: 'Ebay', logo: 'https://logo.clearbit.com/ebay.com?size=256', link: 'https://sovrn.co/f9w0if6' },
-    { name: 'Grâce Beauty', logo: 'https://logo.clearbit.com/gracebeauty.com?size=256', link: 'https://sovrn.co/1jf85qs' },
+    { name: 'Grâce Beauty', logo: 'https://logo.clearbit.com/gracebeauty.com?size=256', link: 'https://sovrn.co/yvagnc4' },
   ];
 
   // If trial is over and user is not a subscriber, show expired view
   if (isTrialUser && !isWithinTrial) {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center bg-black">
+      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center bg-black relative overflow-hidden">
+        {/* Modern Ambient Background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/4 right-1/4 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
+
         <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-3xl shadow-2xl"
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          className="max-w-md w-full bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-10 rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10"
         >
-          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Star className="w-10 h-10 text-red-500" />
+          <div className="w-24 h-24 bg-gradient-to-br from-red-500/20 to-red-600/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
+            <Star className="w-12 h-12 text-red-500" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">{t('club.trial.expired.title')}</h1>
-          <p className="text-zinc-400 mb-8 leading-relaxed">
+          <h1 className="text-2xl font-bold text-white mb-4 tracking-tight uppercase">{t('club.trial.expired.title')}</h1>
+          <p className="text-zinc-400 mb-10 leading-relaxed text-sm font-medium">
             {t('club.trial.expired.desc')}
           </p>
           <button 
             onClick={() => navigate('/app/premium')}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
           >
-            <Crown className="w-5 h-5" />
-            {t('club.access.button')}
+            <Crown className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <span className="text-base">{t('club.access.button')}</span>
           </button>
         </motion.div>
       </div>
@@ -84,25 +87,29 @@ export default function Club() {
   const hasAccess = isSubscriber || (user.type === 'particulier' && isWithinTrial);
   if (!hasAccess && user.type === 'particulier') {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center bg-black">
+      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center bg-black relative overflow-hidden">
+        {/* Modern Ambient Background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
+
         <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-3xl shadow-2xl"
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          className="max-w-md w-full bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-10 rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10"
         >
-          <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Star className="w-10 h-10 text-purple-500" />
+          <div className="w-24 h-24 bg-gradient-to-br from-purple-500/20 to-indigo-600/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
+            <Star className="w-12 h-12 text-purple-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">{t('club.access.title')}</h1>
-          <p className="text-zinc-400 mb-8 leading-relaxed">
+          <h1 className="text-2xl font-bold text-white mb-4 tracking-tight uppercase">{t('club.access.title')}</h1>
+          <p className="text-zinc-400 mb-10 leading-relaxed text-sm font-medium">
             {t('club.access.desc')}
           </p>
           <button 
             onClick={() => navigate('/app/premium')}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
           >
-            <Crown className="w-5 h-5" />
-            {t('club.access.button')}
+            <Crown className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <span className="text-base">{t('club.access.button')}</span>
           </button>
         </motion.div>
       </div>
