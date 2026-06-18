@@ -7,8 +7,9 @@ import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
+export const app = express();
+
 async function startServer() {
-  const app = express();
   const PORT = 3000;
 
   app.use(cors());
@@ -65,9 +66,15 @@ async function startServer() {
         return res.status(400).json({ error: 'Message is required' });
       }
 
-      const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyCy6KKN9k3AjZT1pWTbLU2ii7HuSKNwPEI';
+      const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        return res.status(503).json({ error: 'GEMINI_API_KEY is not configured' });
+        console.error('GEMINI_API_KEY is missing from environment variables');
+        return res.status(503).json({ 
+          error: 'Configuration Error', 
+          text: language === 'fr' 
+            ? "Le service assistant n'est pas encore configuré. Veuillez ajouter votre clé GEMINI_API_KEY dans les paramètres d'AI Studio." 
+            : "The assistant service is not configured yet. Please add your GEMINI_API_KEY in the AI Studio settings." 
+        });
       }
 
       const ai = new GoogleGenAI({ 
@@ -83,8 +90,11 @@ async function startServer() {
       let videosContext = "No active videos currently available.";
       try {
         const { createClient } = await import('@supabase/supabase-js');
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://vlrddnnhwtybwhciqkvv.supabase.co';
-        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRkbm5od3R5YndoY2lxa3Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mzc3NjAsImV4cCI6MjA5MDAxMzc2MH0.qcyEe5GhPcQfAuSGppYSXEfeTy4LrL77Lc1nqNsfAaY';
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+        if (!supabaseUrl || !supabaseAnonKey) {
+          throw new Error('Supabase configuration missing');
+        }
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
         
         const { data: videos } = await supabase
@@ -277,8 +287,9 @@ CONSIGNES :
       if (userId) {
         try {
           const { createClient } = await import('@supabase/supabase-js');
-          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://vlrddnnhwtybwhciqkvv.supabase.co';
-          const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRkbm5od3R5YndoY2lxa3Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mzc3NjAsImV4cCI6MjA5MDAxMzc2MH0.qcyEe5GhPcQfAuSGppYSXEfeTy4LrL77Lc1nqNsfAaY';
+          const supabaseUrl = process.env.VITE_SUPABASE_URL;
+          const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+          if (!supabaseUrl || !supabaseAnonKey) return;
           const supabase = createClient(supabaseUrl, supabaseAnonKey);
           
           await supabase.from('corner_messages').insert([{
@@ -310,7 +321,7 @@ CONSIGNES :
     // Wait exactly 30 seconds before deleting if offensive
     setTimeout(async () => {
       try {
-        const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyCy6KKN9k3AjZT1pWTbLU2ii7HuSKNwPEI';
+        const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) return;
 
         const ai = new GoogleGenAI({ 
@@ -331,8 +342,9 @@ CONSIGNES :
         
         if (isOffensive && token) {
           const { createClient } = await import('@supabase/supabase-js');
-          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://vlrddnnhwtybwhciqkvv.supabase.co';
-          const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRkbm5od3R5YndoY2lxa3Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mzc3NjAsImV4cCI6MjA5MDAxMzc2MH0.qcyEe5GhPcQfAuSGppYSXEfeTy4LrL77Lc1nqNsfAaY';
+          const supabaseUrl = process.env.VITE_SUPABASE_URL;
+          const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+          if (!supabaseUrl || !supabaseAnonKey) return;
           
           const supabase = createClient(supabaseUrl, supabaseAnonKey, {
             global: { headers: { Authorization: `Bearer ${token}` } }
@@ -354,8 +366,11 @@ CONSIGNES :
         return res.status(400).json({ error: 'Image and prompt are required' });
       }
 
-      // Check for RUNWAYML_API_KEY (we default to empty check and mock if missing locally, but user gave us key: key_7f518...)
-      const apiKey = process.env.RUNWAYML_API_KEY || 'key_7f518c5956ef0ca759efb39764735dfc2334200fa68166f26d19dac0dce944a580964aa9125bc9d59721e415ed934f48066ddaebfa5a445bc5ec19d0cd07b289';
+      // Check for RUNWAYML_API_KEY
+      const apiKey = process.env.RUNWAYML_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ error: 'RUNWAYML_API_KEY is not configured' });
+      }
 
       const RunwayML = (await import('@runwayml/sdk')).default;
       const client = new RunwayML({ apiKey });
@@ -376,7 +391,8 @@ CONSIGNES :
 
   app.get('/api/video-ia-status/:id', async (req, res) => {
     try {
-      const apiKey = process.env.RUNWAYML_API_KEY || 'key_7f518c5956ef0ca759efb39764735dfc2334200fa68166f26d19dac0dce944a580964aa9125bc9d59721e415ed934f48066ddaebfa5a445bc5ec19d0cd07b289';
+      const apiKey = process.env.RUNWAYML_API_KEY;
+      if (!apiKey) throw new Error('RUNWAYML_API_KEY not configured');
       const RunwayML = (await import('@runwayml/sdk')).default;
       const client = new RunwayML({ apiKey });
 
@@ -405,13 +421,13 @@ CONSIGNES :
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.NETLIFY) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -419,9 +435,11 @@ CONSIGNES :
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.NETLIFY) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
