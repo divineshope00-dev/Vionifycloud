@@ -4,7 +4,8 @@
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "esbuild"
+  node_bundler = "nft"
+  external_node_modules = ["vite", "esbuild"]
 
 [[redirects]]
   from = "/api/*"

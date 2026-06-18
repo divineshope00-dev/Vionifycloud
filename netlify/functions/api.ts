@@ -1,4 +1,4 @@
 import serverless from 'serverless-http';
-import { app } from '../../server';
+import { app } from '../../src/api';
 
 export const handler = serverless(app);
