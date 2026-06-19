@@ -112,28 +112,6 @@ export default function Notice() {
           </div>
         </section>
 
-        {/* Section: Bibliothèque */}
-        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 overflow-hidden relative">
-          <div className="absolute bottom-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] -mb-10 -mr-10 rounded-full"></div>
-          
-          <div className="flex items-center gap-3 mb-6 relative">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
-              <Download className="w-5 h-5" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">{t('notice.library.title')}</h2>
-          </div>
-          
-          <div className="space-y-4 text-zinc-300">
-            <p>{t('notice.library.desc')}</p>
-            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-start gap-3 mt-4">
-              <Info className="w-6 h-6 text-blue-400 shrink-0 mt-0.5" />
-              <p className="text-sm text-blue-200">
-                <strong>{t('notice.library.warning').split(':')[0]} :</strong>{t('notice.library.warning').split(':')[1]}
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* Section: Club & Premium */}
         <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[50px] -mt-10 -mr-10 rounded-full"></div>

@@ -10,7 +10,12 @@ import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
 const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => void, onLike: (e: React.MouseEvent, id: string) => void, user: User, quality?: VideoQuality }> = ({ video, hasAccess, onClick, onLike, user, quality = '720p' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [duration, setDuration] = useState<number>(0);
-  const currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+  let currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+
+  // Add time fragment to force thumbnail rendering
+  if (currentUrl && !currentUrl.includes('#t=')) {
+    currentUrl += '#t=0.001';
+  }
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
@@ -45,7 +50,14 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
             {video.products && video.products.length > 0 ? (
-              <img src={video.products[0].imageUrl} alt="Product" className="w-full h-full object-cover opacity-50" />
+              <img 
+                src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                alt="Product" 
+                className="w-full h-full object-cover opacity-50"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                }} 
+              />
             ) : (
               <ShoppingBag className="w-12 h-12 text-zinc-700" />
             )}
@@ -85,7 +97,7 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
             <img src={video.entreprisePic} alt={video.entrepriseName} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-purple-500 font-bold">
-              {video.entrepriseName[0]}
+              {video.entrepriseName?.[0] || '?'}
             </div>
           )}
         </div>
@@ -195,7 +207,9 @@ export default function Search() {
     try {
       const updatedVideo = await db.toggleLike(user.id, videoId);
       if (updatedVideo) {
-        setResults(currentResults => currentResults.map(v => v.id === videoId ? updatedVideo : v));
+        setResults(currentResults => currentResults.map(v => 
+          v.id === videoId ? { ...v, likes: updatedVideo.likes, likedBy: updatedVideo.likedBy } : v
+        ));
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);

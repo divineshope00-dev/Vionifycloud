@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Building2, User } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 export default function RoleSelection() {
   const location = useLocation();

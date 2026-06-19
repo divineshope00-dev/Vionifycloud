@@ -22,10 +22,8 @@ export const translations = {
     // Navigation
     'nav.home': 'Accueil',
     'nav.publish': 'Publier',
-    'nav.library': 'Bibliothèque',
     'nav.profile': 'Profil',
     'nav.premium': 'Premium',
-    'nav.shopping': 'Shopping',
     'nav.club': 'Club',
     
     // Home
@@ -87,11 +85,11 @@ export const translations = {
     'publish.limit.desc': 'Vous avez atteint la limite de {{limit}} vidéos pour votre abonnement actuel durant les 30 derniers jours. Vous pouvez attendre la fin de la période de 30 jours ou passer à un abonnement supérieur pour continuer à publier.',
     'publish.limit.upgrade': 'Passer au Premium',
     'publish.limit.wait': 'Attendre la fin des 30 jours',
-    'publish.productLimit': 'Maximum 5 images produits par publication',
     
     // Library
     'library.title': 'Ma Bibliothèque',
     'library.expireNote': 'Les favoris expirent après 30 jours',
+    'library.expiresIn': 'Expire dans {{days}}j',
     'library.remove': 'Retirer',
     'library.empty': 'Vous n\'avez pas encore de vidéos en favoris.',
     'library.tabs.videos': 'Vidéos',
@@ -193,12 +191,6 @@ export const translations = {
     'club.footer.title': 'Plus de surprises arrivent... 🎁',
     'club.footer.desc': 'Nous travaillons sur des partenariats exclusifs et des fonctionnalités réservées aux membres du Club. Restez à l\'écoute !',
     
-    // Corner Assistant
-    'corner.welcome': 'Bonjour ! Je suis Corner, votre assistant expert Vionify. Que puis-je faire pour vous aujourd\'hui ? 🌸',
-    'corner.placeholder': 'Posez votre question sur Vionify...',
-    'corner.error.scope': 'Désolé, je ne peux répondre qu\'aux questions concernant Vionify ou vous donner des conseils sur nos vidéos et produits.',
-    'corner.error.generic': 'Désolé, une erreur est survenue lors de la communication avec Corner.',
-
     // Premium Founder
     'premium.founder.welcome': 'Bienvenue dans le Cercle, {{name}} ! 🏆',
     'premium.founder.welcome.desc': 'Votre statut de Fondateur est actif. Vous avez désormais accès à tous les privilèges exclusifs du Club.',
@@ -366,10 +358,10 @@ export const translations = {
 
     // Onboarding
     'onboarding.welcome.title': 'Bienvenue chez Vionify',
-    'onboarding.welcome.desc': 'Ici chez Vionify, publiez simplement vos vidéos, intégrez vos liens, ainsi que vos images produits avec leurs liens. Vionify s\'occupe du reste !',
+    'onboarding.welcome.desc': 'Ici chez Vionify, publiez simplement vos vidéos et intégrez vos liens produits. Vionify s\'occupe du reste !',
     'onboarding.welcome.highlight': 'Laissez vos vidéos vendre pour vous sur Vionify.',
     'onboarding.welcome.feat1': 'Publication de vidéos avec liens intégrés',
-    'onboarding.welcome.feat2': 'Images produits et liens d\'achat directs',
+    'onboarding.welcome.feat2': 'Liens d\'achat directs sous la vidéo',
     'onboarding.trial.title': 'Offre Spéciale Entreprise',
     'onboarding.trial.message': 'Profitez de 3 jours d\'essai gratuit sur Vionify !',
     'onboarding.trial.desc': 'Testez toutes nos fonctionnalités premium sans engagement pendant une semaine entière.',
@@ -439,22 +431,12 @@ export const translations = {
     'notice.home.title': 'L\'Accueil & L\'Exploration Infinie',
     'notice.home.desc': 'Préparez-vous à plonger dans un flux hypnotique de vidéos immersives au format vertical. Un simple balayage vers le haut ou le bas vous transporte instantanément d\'univers en univers, dévoilant les dernières tendances.',
     'notice.home.discover': 'Le Bouton Discover (Découverte) : Le cœur battant de Vionify ! Laissez-vous surprendre par l\'algorithme qui sélectionne des pépites sur-mesure rien que pour vous. C\'est l\'outil parfait pour une dose d\'inspiration instantanée !',
-    'notice.home.interactions': 'Interactions : Réagissez comme vous aimez. Likez, commentez, partagez vos coups de cœur avec vos amis, ou ajoutez-les à votre "Bibliothèque" pour ne jamais les perdre de vue.',
-    'notice.home.products': 'Produits intégrés : Chaque vidéo est une vitrine interactive ! Si un produit apparaît à l\'écran (avec son URL, Nom, Prix, Image), il s\'affichera sous forme de carrousel interactif au bas de la vidéo. Fini de chercher pendant des heures !',
-    'notice.shopping.title': 'Consulter & Acheter un Produit',
-    'notice.shopping.desc': 'Lorsque vous voyez un produit qui vous intéresse dans une vidéo :',
-    'notice.shopping.step1': 'Cliquez sur l\'image ou la carte du produit affichée sur la vidéo.',
-    'notice.shopping.step2': 'Une fenêtre (ou un navigateur minimaliste) s\'ouvrira, vous emmenant directement sur la page d\'achat ou le site officiel du vendeur via son lien intégré.',
-    'notice.shopping.step3': 'Vous pourrez alors finaliser l\'achat directement sur le site de l\'entreprise en toute sécurité.',
-    'notice.shopping.step4': 'Les liens mis dans les images/produits servent comme pont direct entre le contenu vidéo et la boutique de l\'entreprise.',
+    'notice.home.interactions': 'Interactions : Réagissez comme vous aimez. Likez, commentez et partagez vos coups de cœur avec vos amis.',
+    'notice.home.products': 'Produits intégrés : Chaque vidéo est une vitrine interactive ! Si un produit apparaît à l\'écran (avec son URL, Nom, Prix), il s\'affichera sous forme de carrousel interactif au bas de la vidéo. Fini de chercher pendant des heures !',
     'notice.search.title': 'Menu Recherche',
     'notice.search.desc': 'Ce menu vous permet de chercher spécifiquement des vidéos, des produits ou des entreprises.',
     'notice.search.bar': 'Barre de recherche : Tapez des mots clés et découvrez des catalogues.',
     'notice.search.categories': 'Catégories : Naviguez par filtres (Vêtements, Beauté, Immobilier, etc.) pour tomber sur des secteurs précis.',
-    'notice.shop.title': 'L\'Option Shopping',
-    'notice.shop.desc': 'Envie d\'aller directement à l\'essentiel ? Le menu Shopping est votre centre commercial virtuel privé, conçu pour vous faire gagner du temps avec style.',
-    'notice.shop.brands': 'Boutiques & Marques : Retrouvez toutes les entreprises présentes sur Vionify, organisées visuellement pour un lèche-vitrine sans limites.',
-    'notice.shop.discover': 'Découverte instantanée : Baladez-vous dans les catalogues complets et tombez sous le charme de votre prochain achat (vêtements, beauté, high-tech, etc.).',
     'notice.library.title': 'Menu Bibliothèque',
     'notice.library.desc': 'Vos sauvegardes (Vidéos mises en favoris) sont répertoriées ici.',
     'notice.library.warning': 'Important : Toute vidéo mise ici est automatiquement supprimée 30 jours après la date à laquelle vous l\'avez ajoutée. Pensez à acheter le produit de la vidéo avant qu\'elle ne disparaisse !',
@@ -477,8 +459,7 @@ export const translations = {
     'noticeEnt.publish.title': 'Créer & Publier : Le cœur de vos ventes',
     'noticeEnt.publish.desc': 'Transformez chaque vue en achat ! Le menu Créer (+) est votre porte d\'entrée pour captiver votre audience.',
     'noticeEnt.publish.video': 'Vidéos Immersives : Importez des vidéos dynamiques (max 50Mo, compressées automatiquement si au-delà) depuis votre galerie qui mettent en valeur vos produits, vos locaux, ou votre expertise.',
-    'noticeEnt.publish.ai': 'Vionify Video IA : Plus que jamais dans le futur ! N\'avez-vous pas de vidéo pro ? Téléchargez juste l\'image de votre produit, écrivez un prompt magique et laissez notre IA générer une vidéo publicitaire professionnelle de 15s au format 16:9 en quelques instants.',
-    'noticeEnt.publish.products': 'Liez vos Fiches Produits : L\'arme secrète ! Ajoutez vos articles directement sous la vidéo avec nom, prix, lien direct vers votre site internet, et image. Lorsqu\'un utilisateur clique, il atterrit immédiatement sur votre boutique.',
+    'noticeEnt.publish.products': 'Liez vos Fiches Produits : L\'arme secrète ! Ajoutez vos articles directement sous la vidéo avec nom, prix et lien direct vers votre site internet. Lorsqu\'un utilisateur clique, il atterrit immédiatement sur votre boutique.',
     'noticeEnt.studio.title': 'Studio : Vos Vidéos en un clin d\'œil',
     'noticeEnt.studio.desc': 'Le Studio rassemble toutes vos publications sur une seule interface.',
     'noticeEnt.studio.manage': 'Gestion simplifiée : Éditez ou supprimez n\'importe quelle vidéo et fiche produit en un clic.',
@@ -488,10 +469,6 @@ export const translations = {
     'noticeEnt.stats.detail': 'Vue Détaillée : Gardez l\'œil ouvert sur votre trafic (Nouveaux Abonnés, Vues Globales de vos vidéos, Impressions, etc.).',
     'noticeEnt.stats.products': 'Top Produits : Suivez directement le nombre de personnes qui ont cliqué sur les liens (URL) de vos produits vers votre site ! C\'est l\'indicateur clair de votre rentabilité et des leads générés depuis Vionify.',
     'noticeEnt.stats.leads': 'Leads et Ventes : Regardez quelles vidéos performent le mieux et ajustez votre prochain contenu.',
-    'noticeEnt.ai.title': 'Abonnements Standard & Video IA Premium',
-    'noticeEnt.ai.desc': 'Pour propulser votre croissance sur la lune, Vionify se base sur des abonnements sur-mesure !',
-    'noticeEnt.ai.sub': 'L\'Abonnement Standard (Obligatoire) : Permet d\'avoir accès au réseau. Sans ce pass, impossible de publier vos vidéos vers l\'audience. Plusieurs paliers s\'offrent à vous selon la taille de votre entreprise (Petite, Moyenne, Grande). Il limite certains plafonds de publications afin de garantir la qualité globale du réseau.',
-    'noticeEnt.ai.videoia': 'Vionify Video IA (L\'Add-on Magique) : Distrait de l\'abonnement standard, cet espace (via l\'icône Étincelle "Video IA") vous octroie une immense puissance de génération vidéo sans compétences. Choisissez le Basic AI, Pro AI ou Unlimited AI pour obtenir un quota précis de générations automatisées de vos articles de boutiques, et époustouflez vos visiteurs !',
     'noticeEnt.footer': 'L\'équipe Vionify vous souhaite un succès explosif !'
   },
   en: {
@@ -517,10 +494,8 @@ export const translations = {
     // Navigation
     'nav.home': 'Home',
     'nav.publish': 'Publish',
-    'nav.library': 'Library',
     'nav.profile': 'Profile',
     'nav.premium': 'Premium',
-    'nav.shopping': 'Shopping',
     'nav.club': 'Club',
     
     // Home
@@ -583,17 +558,6 @@ export const translations = {
     'publish.limit.upgrade': 'Upgrade to Premium',
     'publish.limit.wait': 'Wait for 30 days to pass',
     'publish.productLimit': 'Maximum 5 product images per publication',
-    
-    // Library
-    'library.title': 'My Library',
-    'library.expireNote': 'Favorites expire after 30 days',
-    'library.remove': 'Remove',
-    'library.empty': 'You don\'t have any favorite videos yet.',
-    'library.tabs.videos': 'Videos',
-    'library.tabs.achats': 'Purchases',
-    'library.achats.viewSite': 'View site',
-    'library.achats.empty': 'No products saved.',
-    'library.achats.collection': 'Product collection',
     
     // Profile
     'profile.title': 'My Profile',
@@ -688,12 +652,6 @@ export const translations = {
     'club.footer.title': 'More surprises coming... 🎁',
     'club.footer.desc': 'We are working on exclusive partnerships and features reserved for Club members. Stay tuned!',
     
-    // Corner Assistant
-    'corner.welcome': 'Hello! I am Corner, your expert Vionify assistant. How can I help you today? 🌸',
-    'corner.placeholder': 'Ask your question about Vionify...',
-    'corner.error.scope': 'Sorry, I can only answer questions about Vionify or give you advice on our videos and products.',
-    'corner.error.generic': 'Sorry, an error occurred while calling Corner.',
-
     // Premium Founder
     'premium.founder.welcome': 'Welcome to the Circle, {{name}} ! 🏆',
     'premium.founder.welcome.desc': 'Your Founder status is active. You now have access to all exclusive Club privileges.',
@@ -861,10 +819,10 @@ export const translations = {
 
     // Onboarding
     'onboarding.welcome.title': 'Welcome to Vionify',
-    'onboarding.welcome.desc': 'Here at Vionify, simply publish your videos, integrate your links, and publish your product images with their links. Vionify takes care of the rest!',
+    'onboarding.welcome.desc': 'Here at Vionify, simply publish your videos and integrate your product links. Vionify takes care of the rest!',
     'onboarding.welcome.highlight': 'Let your videos sell for you on Vionify.',
     'onboarding.welcome.feat1': 'Video publishing with integrated links',
-    'onboarding.welcome.feat2': 'Product images and direct purchase links',
+    'onboarding.welcome.feat2': 'Direct purchase links under the video',
     'onboarding.trial.title': 'Special Business Offer',
     'onboarding.trial.message': 'Enjoy a 3-day free trial on Vionify!',
     'onboarding.trial.desc': 'Test all our premium features without commitment for a full week.',
@@ -934,22 +892,12 @@ export const translations = {
     'notice.home.title': 'Home & Infinite Exploration',
     'notice.home.desc': 'Get ready to dive into a hypnotic stream of immersive vertical videos. A simple swipe up or down instantly transports you from universe to universe, revealing the latest trends.',
     'notice.home.discover': 'The Discover Button: The beating heart of Vionify! Let yourself be surprised by the algorithm that selects tailor-made gems just for you. It\'s the perfect tool for an instant dose of inspiration!',
-    'notice.home.interactions': 'Interactions: React how you like. Like, comment, share your favorites with friends, or add them to your "Library" to never lose sight of them.',
-    'notice.home.products': 'Integrated Products: Each video is an interactive showcase! If a product appears on screen (with its URL, Name, Price, Image), it will be displayed as an interactive carousel at the bottom of the video. No more searching for hours!',
-    'notice.shopping.title': 'View & Buy a Product',
-    'notice.shopping.desc': 'When you see a product that interests you in a video:',
-    'notice.shopping.step1': 'Click on the product image or card displayed on the video.',
-    'notice.shopping.step2': 'A window (or minimalist browser) will open, taking you directly to the purchase page or the seller\'s official website via its integrated link.',
-    'notice.shopping.step3': 'You can then securely complete the purchase directly on the company\'s website.',
-    'notice.shopping.step4': 'Links placed in images/products serve as a direct bridge between the video content and the company\'s store.',
+    'notice.home.interactions': 'Interactions: React how you like. Like, comment, and share your favorites with your friends.',
+    'notice.home.products': 'Integrated Products: Each video is an interactive showcase! If a product appears on screen (with its URL, Name, Price), it will be displayed as an interactive carousel at the bottom of the video. No more searching for hours!',
     'notice.search.title': 'Search Menu',
     'notice.search.desc': 'This menu allows you to specifically search for videos, products, or companies.',
     'notice.search.bar': 'Search bar: Type keywords and discover catalogs.',
     'notice.search.categories': 'Categories: Navigate by filters (Clothing, Beauty, Real Estate, etc.) to land on specific sectors.',
-    'notice.shop.title': 'The Shopping Option',
-    'notice.shop.desc': 'Want to get straight to the point? The Shopping menu is your private virtual mall, designed to save you time with style.',
-    'notice.shop.brands': 'Boutiques & Brands: Find all the companies present on Vionify, visually organized for limitless window shopping.',
-    'notice.shop.discover': 'Instant Discovery: Stroll through full catalogs and fall in love with your next purchase (clothing, beauty, high-tech, etc.).',
     'notice.library.title': 'Library Menu',
     'notice.library.desc': 'Your saves (Favorited Videos) are listed here.',
     'notice.library.warning': 'Important: Any video placed here is automatically deleted 30 days after the date you added it. Remember to buy the video\'s product before it disappears!',
@@ -972,8 +920,7 @@ export const translations = {
     'noticeEnt.publish.title': 'Create & Publish: The Heart of Your Sales',
     'noticeEnt.publish.desc': 'Turn every view into a purchase! The Create (+) menu is your gateway to captivating your audience.',
     'noticeEnt.publish.video': 'Immersive Videos: Import dynamic videos (max 50MB, automatically compressed if larger) from your gallery that showcase your products, premises, or expertise.',
-    'noticeEnt.publish.ai': 'Vionify Video AI: More in the future than ever! Don\'t have a pro video? Just upload your product\'s image, write a magical prompt, and let our AI generate a professional 15s promotional video in 16:9 format in moments.',
-    'noticeEnt.publish.products': 'Link Your Product Cards: The secret weapon! Add your items directly under the video with name, price, direct link to your website, and image. When a user clicks, they immediately land on your store.',
+    'noticeEnt.publish.products': 'Link Your Product Cards: The secret weapon! Add your items directly under the video with name, price and direct link to your website. When a user clicks, they immediately land on your store.',
     'noticeEnt.studio.title': 'Studio: Your Videos at a Glance',
     'noticeEnt.studio.desc': 'The Studio gathers all your publications on a single interface.',
     'noticeEnt.studio.manage': 'Simplified Management: Edit or delete any video and product card in one click.',
@@ -983,10 +930,6 @@ export const translations = {
     'noticeEnt.stats.detail': 'Detailed View: Keep an eye on your traffic (New Subscribers, Global Video Views, Impressions, etc.).',
     'noticeEnt.stats.products': 'Top Products: Directly track the number of people who clicked your product links (URLs) to your site! This is the clear indicator of your profitability and leads generated from Vionify.',
     'noticeEnt.stats.leads': 'Leads and Sales: See which videos perform best and adjust your next content.',
-    'noticeEnt.ai.title': 'Standard Subscriptions & Premium Video AI',
-    'noticeEnt.ai.desc': 'To propel your growth to the moon, Vionify relies on tailor-made subscriptions!',
-    'noticeEnt.ai.sub': 'The Standard Subscription (Mandatory): Allows access to the network. Without this pass, it is impossible to publish your videos to the audience. Several tiers are available depending on your company size (Small, Medium, Large). It limits certain publication ceilings to guarantee the overall quality of the network.',
-    'noticeEnt.ai.videoia': 'Vionify Video AI (The Magic Add-on): Separate from the standard subscription, this space (via the Sparkle "Video AI" icon) grants you immense video generation power without skills. Choose Basic AI, Pro AI, or Unlimited AI to get a specific quota of automated generations for your store items, and amaze your visitors!',
     'noticeEnt.footer': 'The Vionify team wishes you explosive success!'
   }
 };

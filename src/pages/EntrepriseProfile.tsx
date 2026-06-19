@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Lock, Play, ExternalLink, ThumbsUp, ArrowLeft, Volume2, VolumeX, ShoppingBag } from 'lucide-react';
+import { Lock, Play, ExternalLink, ThumbsUp, ArrowLeft, Volume2, VolumeX, ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { db, User, Video, getBunnyUrl, VideoQuality } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
@@ -11,7 +11,12 @@ const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => voi
   const videoRef = useRef<HTMLVideoElement>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isMuted, setIsMuted] = useState(true);
-  const currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+  let currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+
+  // Add time fragment to force thumbnail rendering on mobile/Safari
+  if (currentUrl && !currentUrl.includes('#t=')) {
+    currentUrl += '#t=0.001';
+  }
 
   useEffect(() => {
     // When quality changes, try to stay at the same time
@@ -72,7 +77,14 @@ const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => voi
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
           {video.products && video.products.length > 0 ? (
-            <img src={video.products[0].imageUrl} alt="Product" className="w-full h-full object-cover opacity-50" />
+            <img 
+              src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+              alt="Product" 
+              className="w-full h-full object-cover opacity-50"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+              }}
+            />
           ) : (
             <ShoppingBag className="w-12 h-12 text-zinc-700" />
           )}
@@ -197,7 +209,9 @@ export default function EntrepriseProfile() {
     try {
       const updatedVideo = await db.toggleLike(user.id, videoId);
       if (updatedVideo) {
-        setVideos(currentVideos => currentVideos.map(v => v.id === videoId ? updatedVideo : v));
+        setVideos(currentVideos => currentVideos.map(v => 
+          v.id === videoId ? { ...v, likes: updatedVideo.likes, likedBy: updatedVideo.likedBy } : v
+        ));
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
@@ -253,6 +267,93 @@ export default function EntrepriseProfile() {
               onClick={() => hasAccess ? navigate(`/app/video/${video.id}`) : navigate('/app/premium')} 
               quality={adaptiveQuality}
             />
+
+            {/* Products Carousel */}
+            {video.products && video.products.length > 0 && (
+              <div className="relative group/carousel px-4 md:px-0 pb-4">
+                {/* Left Arrow (Desktop only) */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: -240, behavior: 'smooth' });
+                  }}
+                  className="absolute left-4 md:left-2 top-14 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 hidden md:flex hover:bg-black shadow-lg"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+  
+                <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x pt-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {video.products.map((product) => {
+                    const finalPrice = product.discount 
+                      ? product.price * (1 - product.discount / 100) 
+                      : product.price;
+                    
+                    return (
+                      <div key={product.id} className="shrink-0 w-28 snap-start group/product">
+                        <a 
+                          href={product.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="relative block w-28 h-28 rounded-xl overflow-hidden shadow-xl border border-white/5 bg-zinc-900"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (user.type === 'particulier') {
+                              db.incrementProductClicks(product.id, user.id);
+                            } else {
+                              db.incrementProductClicks(product.id);
+                            }
+                          }}
+                        >
+                          <img 
+                            src={product.imageUrl || 'https://images.unsplash.com/photo-1417325384643-aac51acc9e5d?w=400&q=80'} 
+                            alt={product.title} 
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover/product:scale-110" 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1417325384643-aac51acc9e5d?w=400&q=80';
+                            }}
+                          />
+                          
+                          {/* Discount Badge */}
+                          {product.discount && product.discount > 0 && (
+                            <div className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md z-10">
+                              -{product.discount}%
+                            </div>
+                          )}
+                          
+                          {/* Price Overlay */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-2 pt-8 z-10">
+                            <div className="text-purple-400 font-bold text-sm text-center drop-shadow-md">
+                              {finalPrice.toFixed(2)}€
+                            </div>
+                          </div>
+  
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-purple-600/20 opacity-0 group-hover/product:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="bg-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg transform translate-y-2 group-hover/product:translate-y-0 transition-transform">
+                              Voir l'article
+                            </div>
+                          </div>
+                        </a>
+                        <p className="text-[11px] text-zinc-300 mt-2 truncate text-center font-medium px-1" title={product.title}>
+                          {product.title}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+  
+                {/* Right Arrow (Desktop only) */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: 240, behavior: 'smooth' });
+                  }}
+                  className="absolute right-4 md:right-2 top-14 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 hidden md:flex hover:bg-black shadow-lg"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+            )}
 
             {/* Info */}
             <div className="flex gap-3 px-4 md:px-0">

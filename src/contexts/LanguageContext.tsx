@@ -5,7 +5,7 @@ import { db } from '../services/supabaseService';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: TranslationKey) => string;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -54,8 +54,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const t = (key: TranslationKey): string => {
-    return translations[language][key] || translations['fr'][key] || key;
+  const t = (key: TranslationKey, params?: Record<string, string | number>): string => {
+    let text = translations[language][key] || translations['fr'][key] || key;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        text = text.replace(`{{${k}}}`, String(v));
+      });
+    }
+    return text;
   };
 
   return (

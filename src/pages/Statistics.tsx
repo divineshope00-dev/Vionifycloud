@@ -95,7 +95,13 @@ export default function Statistics() {
                     {video.videoUrl ? (
                       <video src={video.videoUrl} className="w-full h-full object-cover" />
                     ) : video.products && video.products.length > 0 ? (
-                      <img src={video.products[0].imageUrl} className="w-full h-full object-cover" />
+                      <img 
+                        src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                        }} 
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-600">{t('statistics.noMedia')}</div>
                     )}
@@ -138,7 +144,14 @@ export default function Statistics() {
                         return (
                           <div key={product.id} className="flex items-center gap-3 bg-black/30 p-2 rounded-lg border border-zinc-800/50">
                             <div className="w-10 h-10 rounded bg-zinc-800 overflow-hidden shrink-0">
-                              <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
+                               <img 
+                                 src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                                 alt={product.title} 
+                                 className="w-full h-full object-cover"
+                                 onError={(e) => {
+                                   (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                                 }} 
+                               />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-medium text-white truncate">{product.title}</div>

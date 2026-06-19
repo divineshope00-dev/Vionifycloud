@@ -2,27 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Heart, MessageSquare, Share2, ThumbsUp, ExternalLink, Play, ChevronLeft, ChevronRight, ShoppingBag, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { db, User, Video, Comment, getBunnyUrl, VideoQuality } from '../services/supabaseService';
+import { db, User, Video, Comment, getBunnyUrl, VideoQuality, Product } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
 
 const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [duration, setDuration] = useState<number>(0);
-
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  const thumbUrl = v.rawVideoUrl ? `${getBunnyUrl(v.rawVideoUrl, '480p')}#t=0.001` : null;
 
   return (
     <div 
@@ -30,40 +16,35 @@ const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick 
       onClick={onClick}
     >
       <div className="relative aspect-video bg-zinc-800 rounded-xl overflow-hidden">
-        {v.videoUrl ? (
-          <video 
-            ref={videoRef}
-            src={v.videoUrl} 
-            className="w-full h-full object-cover" 
-            muted 
-            playsInline 
-            preload="metadata"
-            onLoadedMetadata={handleLoadedMetadata}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
-            {v.products && v.products.length > 0 ? (
-              <img src={v.products[0].imageUrl} alt="Product" className="w-full h-full object-cover opacity-50" />
-            ) : (
-              <ShoppingBag className="w-12 h-12 text-zinc-700" />
-            )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <span className="text-white font-medium px-4 py-2 bg-black/60 rounded-lg backdrop-blur-sm">
-                Collection de produits
-              </span>
+        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
+          {thumbUrl ? (
+            <video 
+              src={thumbUrl}
+              className="w-full h-full object-cover"
+              preload="metadata"
+              muted
+              playsInline
+            />
+          ) : v.products && v.products.length > 0 ? (
+            <img 
+              src={v.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+              alt="Product" 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+              }} 
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-purple-900/40 to-black flex items-center justify-center">
+               <span className="text-purple-500/50 font-bold text-lg">{v.title.substring(0, 2).toUpperCase()}</span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition-colors">
           <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
             <Play className="w-4 h-4 text-white ml-1" />
           </div>
         </div>
-        {duration > 0 && (
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded font-medium">
-            {formatTime(duration)}
-          </div>
-        )}
       </div>
       <div className="flex gap-3 px-2">
         <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden shrink-0">
@@ -71,7 +52,7 @@ const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick 
             <img src={v.entreprisePic} alt={v.entrepriseName} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-purple-500 font-bold">
-              {v.entrepriseName[0]}
+              {v.entrepriseName?.[0] || '?'}
             </div>
           )}
         </div>
@@ -83,8 +64,6 @@ const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick 
             <p className="text-xs text-zinc-400 truncate">{v.entrepriseName}</p>
             <div className="flex items-center gap-2 text-xs text-zinc-400">
               <span className="font-medium text-purple-400">{v.price}€</span>
-              <span>•</span>
-              <span>{formatDistanceToNow(new Date(v.createdAt), { addSuffix: true })}</span>
             </div>
           </div>
         </div>
@@ -94,7 +73,8 @@ const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick 
 };
 
 export default function VideoDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = rawId?.trim();
   const { user } = useOutletContext<{ user: User }>();
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -104,6 +84,7 @@ export default function VideoDetail() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [commentUsers, setCommentUsers] = useState<Record<string, User>>({});
   const [monthlyClients, setMonthlyClients] = useState<number>(0);
   const [newComment, setNewComment] = useState('');
@@ -144,7 +125,6 @@ export default function VideoDetail() {
         
         setCurrentVideoUrl(newUrl);
         
-        // Use a small timeout or loadedmetadata event to restore time
         const handleRestore = () => {
           if (videoRef.current) {
             videoRef.current.currentTime = currentTime;
@@ -161,6 +141,23 @@ export default function VideoDetail() {
       }
     }
   }, [adaptiveQuality, video?.rawVideoUrl]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isWindowFocused) {
+        if (currentVideoUrl) {
+          videoRef.current.play().catch(() => {
+            if (videoRef.current) {
+               videoRef.current.muted = true;
+               videoRef.current.play().catch(() => {});
+            }
+          });
+        }
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isWindowFocused, currentVideoUrl]);
 
   const handleTimeUpdate = () => {
     const videoElem = videoRef.current;
@@ -200,22 +197,30 @@ export default function VideoDetail() {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
       if (!canAccessContent(user)) {
         navigate('/app/premium');
         return;
       }
 
       try {
-        const allVideos = await db.getVideos();
-        const found = allVideos.find(v => v.id === id);
+        if (!id) {
+          console.error('No video ID provided');
+          return;
+        }
+
+        const found = await db.getVideo(id, user.id);
         
         if (found) {
-          if (id) {
-            await db.incrementVideoViews(id);
-          }
+          await db.incrementVideoViews(id);
           setVideo(found);
           setCurrentVideoUrl(getBunnyUrl(found.rawVideoUrl, adaptiveQuality));
           setLikes(found.likes);
+          setIsLiked(found.likedBy?.includes(user.id) || false);
           
           // Use subscription for real-time monthly clients count
           const subscription = db.subscribeToMonthlyClients(found.entrepriseId, (count) => {
@@ -256,29 +261,44 @@ export default function VideoDetail() {
              setMetaTag('og:video', found.videoUrl);
           }
           
-          const [liked, fav, videoComments, related] = await Promise.all([
-            db.isLiked(user.id, found.id),
-            db.isFavorite(user.id, found.id),
-            db.getComments(found.id),
-            db.getVideos().then(videos => 
-              videos.filter(v => v.id !== found.id && (v.category === found.category || v.title.includes(found.title.split(' ')[0]))).slice(0, 5)
-            )
-          ]);
+          try {
+            const [fav, videoComments, related, allProducts] = await Promise.all([
+              db.isFavorite(user.id, found.id).catch(() => false),
+              db.getComments(found.id).catch(() => []),
+              db.getVideos().then(videos => 
+                videos.filter(v => v.id !== found.id && v.entrepriseId !== user.id && (v.category === found.category || (found.title && v.title.includes(found.title.split(' ')[0])))).slice(0, 5)
+              ).catch(() => []),
+              db.getAllProducts().then(products => {
+                // Return a few random products that are NOT the ones already in the video
+                const videoProductIds = new Set(found.products?.map(p => p.id) || []);
+                return products
+                  .filter(p => !videoProductIds.has(p.id))
+                  .sort(() => Math.random() - 0.5)
+                  .slice(0, 8);
+              }).catch(() => [])
+            ]);
 
-          setIsLiked(liked);
-          setIsFavorite(fav);
-          setComments(videoComments);
-          setRelatedVideos(related);
+            setIsFavorite(fav);
+            setComments(videoComments);
+            setRelatedVideos(related);
+            setRecommendedProducts(allProducts);
 
-          // Fetch users for comments
-          const userIds = Array.from(new Set(videoComments.map(c => c.userId))) as string[];
-          const usersData = await Promise.all(userIds.map(uid => db.getUser(uid)));
-          const usersMap: Record<string, User> = {};
-          usersData.forEach(u => {
-            if (u) usersMap[u.id] = u;
-          });
-          setCommentUsers(usersMap);
+            // Fetch users for comments
+            if (videoComments.length > 0) {
+              const userIds = Array.from(new Set(videoComments.map(c => c.userId))) as string[];
+              const usersData = await Promise.all(userIds.map(uid => db.getUser(uid).catch(() => null)));
+              const usersMap: Record<string, User> = {};
+              usersData.forEach(u => {
+                if (u) usersMap[u.id] = u;
+              });
+              setCommentUsers(usersMap);
+            }
+          } catch (secondaryError) {
+            console.error('Error loading secondary data:', secondaryError);
+            // Don't navigate away if we already have the video
+          }
         } else {
+          console.error(`Video with ID ${id} not found in database`);
           navigate('/app/home');
         }
       } catch (error) {
@@ -294,8 +314,18 @@ export default function VideoDetail() {
 
   const handleFavorite = async () => {
     if (!video) return;
-    await db.toggleFavorite(user.id, video.id);
-    setIsFavorite(!isFavorite);
+    
+    // Optimistic UI update
+    const previousFavorite = isFavorite;
+    setIsFavorite(!previousFavorite);
+
+    try {
+      await db.toggleFavorite(user.id, video.id);
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+      // Revert on error
+      setIsFavorite(previousFavorite);
+    }
   };
 
   const handleLike = async () => {
@@ -451,14 +481,23 @@ export default function VideoDetail() {
                 controls 
                 autoPlay 
                 playsInline
+                loop
+                preload="auto"
                 onTimeUpdate={handleTimeUpdate}
                 className="w-full h-full object-contain"
                 controlsList="nodownload"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
-                {video.products && video.products.length > 0 ? (
-                  <img src={video.products[0].imageUrl} alt="Product" className="w-full h-full object-contain opacity-50" />
+                {video?.products && video.products.length > 0 ? (
+                  <img 
+                    src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                    alt="Product" 
+                    className="w-full h-full object-contain opacity-50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                    }} 
+                  />
                 ) : (
                   <ShoppingBag className="w-16 h-16 text-zinc-700" />
                 )}
@@ -469,102 +508,142 @@ export default function VideoDetail() {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Products Carousel */}
-          {video.products && video.products.length > 0 && (
-            <div className="relative group/carousel pt-4 pb-2 px-4 md:px-0 bg-black">
-              {/* Left Arrow */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: -250, behavior: 'smooth' });
-                }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20 hidden md:flex hover:bg-black shadow-lg"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-
-              <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {video.products.map((product) => {
-                  const finalPrice = product.discount 
-                    ? product.price * (1 - product.discount / 100) 
-                    : product.price;
-                  
-                  return (
-                    <div key={product.id} className="shrink-0 w-32 snap-start group/product relative">
-                      {/* Product Share Button */}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const url = `${window.location.origin}/app/video/${video.id}?product=${product.id}`;
-                          if (navigator.share) {
-                            navigator.share({
-                              title: `Vionify - ${product.title}`,
-                              text: `Découvrez ce produit sur Vionify : ${product.title}`,
-                              url: url
-                            }).catch(console.error);
-                          } else {
-                            navigator.clipboard.writeText(url);
-                            alert('Lien copié dans le presse-papiers !');
-                          }
-                        }}
-                        className="absolute top-2 left-2 z-20 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm opacity-0 group-hover/product:opacity-100 transition-opacity"
-                        title="Partager ce produit"
-                      >
-                        <Share2 className="w-3 h-3" />
-                      </button>
-                      <a 
-                        href={product.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative block w-32 h-32 rounded-xl overflow-hidden shadow-lg"
-                        onClick={() => {
-                          if (user.type === 'particulier') {
-                            db.incrementProductClicks(product.id, user.id);
-                          } else {
-                            db.incrementProductClicks(product.id);
-                          }
-                        }}
-                      >
-                        <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover transition-transform duration-300 group-hover/product:scale-110" />
-                        
-                        {/* Discount Badge */}
-                        {product.discount && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md z-10">
-                            -{product.discount}%
-                          </div>
-                        )}
-                        
-                        {/* Price Overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2 pt-8 z-10">
-                          <div className="text-purple-400 font-bold text-sm text-center">
-                            {finalPrice.toFixed(2)}€
-                          </div>
-                        </div>
-                      </a>
-                      <p className="text-sm text-zinc-300 mt-2 truncate text-center font-medium px-1" title={product.title}>
-                        {product.title}
-                      </p>
-                    </div>
-                  );
-                })}
+            {/* Float Product Overlay */}
+            {video?.products && video.products.length > 0 && (
+              <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 pointer-events-none group-hover:pointer-events-auto transition-opacity opacity-0 group-hover:opacity-100">
+                {video.products.slice(0, 4).map((product, idx) => (
+                  <a 
+                    key={product.id || idx}
+                    href={product.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-12 h-12 rounded-lg border-2 border-white/20 shadow-xl overflow-hidden bg-zinc-900 hover:scale-110 aspect-square transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (user?.type === 'particulier') {
+                        db.incrementProductClicks(product.id, user.id);
+                      }
+                    }}
+                  >
+                  <img 
+                    src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                    alt="" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (!target.src.includes('photo-1523275335684-37898b6baf30')) {
+                        target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                      }
+                    }} 
+                  />
+                  </a>
+                ))}
+                {video.products.length > 4 && (
+                  <div className="w-12 h-12 rounded-lg border-2 border-white/20 bg-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-xl">
+                    +{video.products.length - 4}
+                  </div>
+                )}
               </div>
-
-              {/* Right Arrow */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: 250, behavior: 'smooth' });
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20 hidden md:flex hover:bg-black shadow-lg"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Products Carousel (Below Video Area) */}
+        {video.products && video.products.length > 0 && (
+          <div className="relative group/carousel pt-6 pb-6 px-4 md:px-0 bg-zinc-950/50 border-b border-zinc-900">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs uppercase tracking-[0.2em] font-black text-purple-500">
+                Découvrir les articles
+              </h3>
+            </div>
+            {/* Left Arrow */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: -250, behavior: 'smooth' });
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-20 hidden md:flex hover:bg-black shadow-lg"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {video.products.map((product) => {
+                return (
+                  <div key={product.id} className="shrink-0 w-32 md:w-40 snap-start group/product relative">
+                    {/* Product Share Button */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const url = `${window.location.origin}/app/video/${video.id}?product=${product.id}`;
+                        if (navigator.share) {
+                          navigator.share({
+                            title: `Vionify - ${product.title}`,
+                            text: `Découvrez ce produit sur Vionify : ${product.title}`,
+                            url: url
+                          }).catch(console.error);
+                        } else {
+                          navigator.clipboard.writeText(url);
+                          alert('Lien copié dans le presse-papiers !');
+                        }
+                      }}
+                      className="absolute top-2 right-2 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-md opacity-0 group-hover/product:opacity-100 transition-opacity border border-white/10"
+                      title="Partager ce produit"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </button>
+                    
+                    <a 
+                      href={product.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block aspect-square rounded-xl overflow-hidden shadow-lg bg-zinc-900 border border-white/5"
+                      onClick={() => {
+                        if (user?.type === 'particulier') {
+                          db.incrementProductClicks(product.id, user.id);
+                        } else {
+                          db.incrementProductClicks(product.id);
+                        }
+                      }}
+                    >
+                      <img 
+                        src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                        alt={product.title} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover/product:scale-110"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80') {
+                            target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                          }
+                        }} 
+                      />
+                      
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/product:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="bg-white text-purple-700 text-[8px] font-black px-3 py-1.5 rounded-full shadow-2xl transform translate-y-4 group-hover/product:translate-y-0 transition-transform duration-300 uppercase tracking-widest">
+                          Ouvrir
+                        </span>
+                      </div>
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Right Arrow */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: 250, behavior: 'smooth' });
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-all z-20 hidden md:flex hover:bg-purple-500 shadow-lg border border-white/20"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
+        )}
 
         <div className="px-4 md:px-0 mt-4 md:mt-6">
           {/* Video Info */}
@@ -574,21 +653,21 @@ export default function VideoDetail() {
           <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden shrink-0 cursor-pointer"
-              onClick={() => user.type === 'particulier' && navigate(`/app/entreprise/${video.entrepriseId}`)}
+              onClick={() => user?.type === 'particulier' && navigate(`/app/entreprise/${video.entrepriseId}`)}
             >
               {video.entreprisePic ? (
                 <img src={video.entreprisePic} alt={video.entrepriseName} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-purple-500 font-bold">
-                  {video.entrepriseName[0]}
+                  {video.entrepriseName?.[0] || '?'}
                 </div>
               )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 
-                  className={`font-semibold text-white ${user.type === 'particulier' ? 'cursor-pointer hover:text-purple-400 transition-colors' : ''}`}
-                  onClick={() => user.type === 'particulier' && navigate(`/app/entreprise/${video.entrepriseId}`)}
+                  className={`font-semibold text-white ${user?.type === 'particulier' ? 'cursor-pointer hover:text-purple-400 transition-colors' : ''}`}
+                  onClick={() => user?.type === 'particulier' && navigate(`/app/entreprise/${video.entrepriseId}`)}
                 >
                   {video.entrepriseName}
                 </h3>
@@ -610,7 +689,7 @@ export default function VideoDetail() {
               rel="noopener noreferrer"
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-full font-medium transition-colors"
               onClick={() => {
-                if (user.type === 'particulier') {
+                if (user?.type === 'particulier') {
                   db.incrementVideoClicks(video.id, user.id);
                 } else {
                   db.incrementVideoClicks(video.id);
@@ -663,11 +742,11 @@ export default function VideoDetail() {
             </span>
           </div>
           <p className="text-sm text-zinc-300 whitespace-pre-wrap">
-            {user.type === 'particulier' && video.description.length > 100 && !isDescriptionExpanded
+            {user?.type === 'particulier' && video.description.length > 100 && !isDescriptionExpanded
               ? `${video.description.substring(0, 100)}...`
               : video.description}
           </p>
-          {user.type === 'particulier' && video.description.length > 100 && (
+          {user?.type === 'particulier' && video.description.length > 100 && (
             <button 
               onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
               className="text-purple-400 hover:text-purple-300 text-sm font-medium mt-2 focus:outline-none transition-colors"
@@ -827,6 +906,64 @@ export default function VideoDetail() {
           </div>
         </div>
         </div>
+
+        {/* Recommended Products */}
+        {recommendedProducts.length > 0 && (
+          <div className="mt-12 px-4 md:px-0">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold">Produits recommandés</h3>
+              <button 
+                onClick={() => navigate('/app/shopping')}
+                className="text-purple-500 text-sm font-medium hover:text-purple-400"
+              >
+                Tout voir
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {recommendedProducts.map((product) => {
+                const finalPrice = product.discount 
+                  ? product.price * (1 - product.discount / 100) 
+                  : product.price;
+
+                return (
+                  <div key={product.id} className="group flex flex-col gap-2">
+                    <a 
+                      href={product.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block aspect-[3/4] rounded-xl overflow-hidden shadow-lg bg-zinc-900 border border-white/5"
+                      onClick={() => {
+                        if (user.type === 'particulier') {
+                          db.incrementProductClicks(product.id, user.id);
+                        }
+                      }}
+                    >
+                      <img 
+                        src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                        alt={product.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                        }}
+                      />
+                      {product.discount && product.discount > 0 && (
+                        <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm z-10">
+                          -{product.discount}%
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent p-2 pt-8 z-10 text-center">
+                        <div className="text-purple-400 font-bold text-xs">
+                          {finalPrice.toFixed(2)}€
+                        </div>
+                      </div>
+                    </a>
+                    <p className="text-[10px] text-zinc-400 truncate px-1 group-hover:text-white transition-colors">{product.title}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Sidebar (Related Videos) - Mobile Only */}
         <div className="w-full flex flex-col gap-4 px-4 md:px-0 mt-8 lg:hidden">

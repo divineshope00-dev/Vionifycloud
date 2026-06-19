@@ -15,22 +15,18 @@ import Login from './pages/Login';
 import MainLayout from './components/MainLayout';
 import Home from './pages/Home';
 import Publish from './pages/Publish';
-import Library from './pages/Library';
 import Premium from './pages/Premium';
 import Club from './pages/Club';
 import Profile from './pages/Profile';
 import EntrepriseProfile from './pages/EntrepriseProfile';
 import VideoDetail from './pages/VideoDetail';
 import Search from './pages/Search';
-import Shopping from './pages/Shopping';
 import Statistics from './pages/Statistics';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import Notice from './pages/Notice';
 import NoticeEntreprise from './pages/NoticeEntreprise';
 import ResetPassword from './pages/ResetPassword';
-import VideoIA from './pages/VideoIA';
-import VideoIAPremium from './pages/VideoIAPremium';
 import InstallPrompt from './components/InstallPrompt';
 import SplashScreen from './components/SplashScreen';
 import SubscriptionGuard from './components/SubscriptionGuard';
@@ -96,14 +92,10 @@ export default function App() {
             <Route path="home" element={<ProtectedRoute requireSubscription><Home /></ProtectedRoute>} />
             <Route path="video/:id" element={<VideoDetail />} />
             <Route path="publish" element={<ProtectedRoute requireSubscription><Publish /></ProtectedRoute>} />
-            <Route path="library" element={<Library />} />
             <Route path="search" element={<Search />} />
-            <Route path="shopping" element={<Shopping />} />
             <Route path="statistics" element={<ProtectedRoute requireSubscription><Statistics /></ProtectedRoute>} />
             <Route path="entreprise/:id" element={<EntrepriseProfile />} />
             <Route path="premium" element={<Premium />} />
-            <Route path="video-ia" element={<ProtectedRoute><VideoIA /></ProtectedRoute>} />
-            <Route path="video-ia/premium" element={<ProtectedRoute><VideoIAPremium /></ProtectedRoute>} />
             <Route path="club" element={<Club />} />
             <Route path="profile" element={<Profile />} />
           </Route>

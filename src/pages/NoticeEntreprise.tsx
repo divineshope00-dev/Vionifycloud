@@ -110,26 +110,6 @@ export default function NoticeEntreprise() {
             </ul>
           </div>
         </section>
-
-        {/* Section: Video IA et Abonnements */}
-        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[50px] -mt-10 -mr-10 rounded-full"></div>
-          
-          <div className="flex items-center gap-3 mb-6 relative">
-            <div className="w-10 h-10 rounded-xl bg-yellow-500/20 text-yellow-500 flex items-center justify-center shrink-0">
-              <Crown className="w-5 h-5 fill-current" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">{t('noticeEnt.ai.title')}</h2>
-          </div>
-          
-          <div className="space-y-4 text-zinc-300">
-            <p>{t('noticeEnt.ai.desc')}</p>
-            <ul className="list-disc pl-5 space-y-3 marker:text-yellow-500">
-              <li><strong>{t('noticeEnt.ai.sub').split(':')[0]} :</strong>{t('noticeEnt.ai.sub').split(':')[1]}</li>
-              <li><strong>{t('noticeEnt.ai.videoia').split(':')[0]} :</strong>{t('noticeEnt.ai.videoia').split(':')[1]}</li>
-            </ul>
-          </div>
-        </section>
         
         {/* Footer info */}
         <div className="text-center py-6 text-zinc-500 text-sm">

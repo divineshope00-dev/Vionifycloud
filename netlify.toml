@@ -4,8 +4,8 @@
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "nft"
-  external_node_modules = ["vite", "esbuild"]
+  node_bundler = "esbuild"
+  external_node_modules = ["vite", "@google/genai", "@supabase/supabase-js", "@runwayml/sdk"]
 
 [[redirects]]
   from = "/api/*"

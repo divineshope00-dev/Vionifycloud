@@ -33,15 +33,6 @@ export default function Publish() {
     category: '',
     description: ''
   });
-  const [products, setProducts] = useState<Array<{
-    id: string;
-    title: string;
-    imageFile: File | null;
-    imageUrl: string;
-    link: string;
-    price: string;
-    discount: string;
-  }>>([]);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [videoCount, setVideoCount] = useState<number | null>(null);
@@ -124,53 +115,6 @@ export default function Publish() {
     }
   };
 
-  const handleAddProduct = () => {
-    if (products.length >= 5) {
-      setError(t('publish.productLimit'));
-      return;
-    }
-    setProducts([...products, {
-      id: Math.random().toString(36).substring(7),
-      title: '',
-      imageFile: null,
-      imageUrl: '',
-      link: '',
-      price: '',
-      discount: ''
-    }]);
-  };
-
-  const handleRemoveProduct = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
-    if (products.length <= 5) setError('');
-  };
-
-  const handleProductChange = (id: string, field: string, value: any) => {
-    setProducts(products.map(p => {
-      if (p.id === id) {
-        return { ...p, [field]: value };
-      }
-      return p;
-    }));
-  };
-
-  const handleProductImageChange = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError('Veuillez sélectionner une image valide pour le produit.');
-        return;
-      }
-      const imageUrl = URL.createObjectURL(file);
-      setProducts(products.map(p => {
-        if (p.id === id) {
-          return { ...p, imageFile: file, imageUrl };
-        }
-        return p;
-      }));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -181,17 +125,9 @@ export default function Publish() {
       return;
     }
 
-    if (!videoPreview && products.length === 0) {
-      setError('Veuillez ajouter une vidéo ou au moins un produit.');
+    if (!videoPreview) {
+      setError('Veuillez ajouter une vidéo.');
       return;
-    }
-
-    // Validate products
-    for (const p of products) {
-      if (!p.title || !p.imageUrl || !p.link || !p.price) {
-        setError('Veuillez remplir tous les champs obligatoires pour chaque produit (Titre, Image, Lien, Prix).');
-        return;
-      }
     }
 
     setIsSubmitting(true);
@@ -206,34 +142,7 @@ export default function Publish() {
         finalVideoUrl = await db.uploadFile('vionify-assets', `videos/${fileName}`, videoFile);
       }
 
-      // 2. Upload Product Images
-      const formattedProducts: Product[] = [];
-      for (const p of products) {
-        let finalProductImageUrl = p.imageUrl;
-        
-        // If there's a file, upload it to Supabase Storage
-        if (p.imageFile) {
-          const fileName = `${Date.now()}-product-${p.id}-${p.imageFile.name}`;
-          finalProductImageUrl = await db.uploadFile('vionify-assets', `products/${fileName}`, p.imageFile);
-        } else if (p.imageUrl.startsWith('data:')) {
-          // Fallback for base64 if needed
-          const response = await fetch(p.imageUrl);
-          const blob = await response.blob();
-          const fileName = `${Date.now()}-product-${p.id}.jpg`;
-          finalProductImageUrl = await db.uploadFile('vionify-assets', `products/${fileName}`, blob);
-        }
-
-        formattedProducts.push({
-          id: p.id,
-          video_id: '', // Will be set by Supabase
-          title: p.title,
-          imageUrl: finalProductImageUrl,
-          link: p.link,
-          price: parseFloat(p.price),
-          discount: p.discount ? parseFloat(p.discount) : undefined
-        });
-      }
-
+      // 2. Add Video to DB
       const addedVideo = await db.addVideo({
         entrepriseId: user.id,
         entrepriseName: user.name,
@@ -245,15 +154,14 @@ export default function Publish() {
         discount: formData.discount ? parseFloat(formData.discount) : undefined,
         link: formData.link,
         category: formData.category,
-        description: formData.description,
-        products: formattedProducts.length > 0 ? formattedProducts : undefined
+        description: formData.description
       });
 
       // Automatically check for offensive content via the backend module 
       // which deletes it 30 sec later if flagged.
       try {
         const { data: sessionData } = await supabase.auth.getSession();
-        await fetch('/api/moderate-video', {
+        fetch('/api/moderate-video', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -264,15 +172,16 @@ export default function Publish() {
             title: formData.title,
             description: formData.description
           })
-        });
-      } catch (modErr) {
-        console.error('Moderation queue failed:', modErr);
+        }).catch(modErr => console.error('Moderation queue failed:', modErr));
+      } catch (e) {
+        console.error('Failed to init moderation:', e);
       }
 
       navigate('/app/home');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Publish error:', err);
-      setError('Erreur lors de la publication. Vérifiez votre connexion à la base de données.');
+      // Display the actual error message from Supabase to help debugging
+      setError(`Erreur lors de la publication: ${err?.message || 'Vérifiez la connexion.'}`);
       setIsSubmitting(false);
     }
   };
@@ -448,124 +357,6 @@ export default function Publish() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
-          </div>
-        </div>
-
-        {/* Products Section */}
-        <div className="border-t border-zinc-800 pt-6 mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-bold">Produits associés</h3>
-              <p className="text-sm text-zinc-500">Ajoutez jusqu'à 5 images de produits avec leurs liens et prix.</p>
-            </div>
-            {products.length < 5 && (
-              <button
-                type="button"
-                onClick={handleAddProduct}
-                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Ajouter un produit
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            {products.map((product, index) => (
-              <div key={product.id} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 relative">
-                <button
-                  type="button"
-                  onClick={() => handleRemoveProduct(product.id)}
-                  className="absolute top-4 right-4 text-zinc-500 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-                
-                <h4 className="font-medium mb-4">Produit {index + 1}</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  {/* Image Upload */}
-                  <div className="md:col-span-3">
-                    <div className="relative w-full aspect-square bg-zinc-900 border-2 border-dashed border-zinc-700 rounded-xl overflow-hidden group hover:border-purple-500 transition-colors">
-                      {product.imageUrl ? (
-                        <>
-                          <img src={product.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                          <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                            <ImageIcon className="w-6 h-6 text-white" />
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="hidden" 
-                              onChange={(e) => handleProductImageChange(product.id, e)}
-                            />
-                          </label>
-                        </>
-                      ) : (
-                        <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
-                          <ImageIcon className="w-8 h-8 text-zinc-500 group-hover:text-purple-500 mb-2 transition-colors" />
-                          <span className="text-xs text-zinc-500">Image requise</span>
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => handleProductImageChange(product.id, e)}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Product Details */}
-                  <div className="md:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-zinc-400 mb-1">Titre du produit *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: T-shirt noir"
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors"
-                        value={product.title}
-                        onChange={(e) => handleProductChange(product.id, 'title', e.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-zinc-400 mb-1">Lien du produit *</label>
-                      <input
-                        type="url"
-                        required
-                        placeholder="https://..."
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors"
-                        value={product.link}
-                        onChange={(e) => handleProductChange(product.id, 'link', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-400 mb-1">Prix (€) *</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors"
-                        value={product.price}
-                        onChange={(e) => handleProductChange(product.id, 'price', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-400 mb-1">Réduction (%)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors"
-                        value={product.discount}
-                        onChange={(e) => handleProductChange(product.id, 'discount', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 

@@ -168,7 +168,7 @@ export default function Premium() {
   const planParticulier = { 
     name: t('premium.plan.premium'), 
     monthly: 3.99,
-    features: [t('premium.feat.allVideos'), t('premium.feat.favorites'), t('premium.feat.noAds')]
+    features: [t('premium.feat.allVideos'), t('premium.feat.noAds')]
   };
 
   const calculatePrice = (monthlyPrice: number) => {

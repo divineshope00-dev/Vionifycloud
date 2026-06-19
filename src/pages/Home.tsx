@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, Link, useNavigate } from 'react-router-dom';
-import { Lock, Play, MoreVertical, Trash2, Edit, ExternalLink, ThumbsUp, Search as SearchIcon, X, Loader2, ChevronLeft, ChevronRight, Upload, Image as ImageIcon, Plus, Volume2, VolumeX, ShoppingBag } from 'lucide-react';
+import { Lock, Play, MoreVertical, Trash2, Edit, ExternalLink, ThumbsUp, Search as SearchIcon, X, Loader2, ChevronLeft, ChevronRight, Upload, Image as ImageIcon, Plus, Volume2, VolumeX, ShoppingBag, AlertCircle, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { db, User, Video, Product, getBunnyUrl, VideoQuality } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
@@ -22,12 +22,18 @@ const FeedVideo: React.FC<{
   isMuted?: boolean,
   onToggleMute?: (e: React.MouseEvent) => void,
   viewerId?: string,
-  quality?: VideoQuality
-}> = ({ video, isEntreprise, hasAccess, onClick, isPlaying = false, isMuted = true, onToggleMute, viewerId, quality = '720p' }) => {
+  quality?: VideoQuality,
+  preload?: "auto" | "metadata" | "none"
+}> = ({ video, isEntreprise, hasAccess, onClick, isPlaying = false, isMuted = true, onToggleMute, viewerId, quality = '720p', preload }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [hasTracked, setHasTracked] = useState(false);
-  const currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+  let currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+  
+  // Add time fragment to force thumbnail rendering on mobile/Safari if not autoplaying
+  if (currentUrl && !currentUrl.includes('#t=') && !isPlaying) {
+    currentUrl += '#t=0.001';
+  }
 
   useEffect(() => {
     // When quality changes, try to stay at the same time
@@ -111,14 +117,21 @@ const FeedVideo: React.FC<{
           playsInline
           loop
           muted={isMuted}
-          preload={isPlaying ? "auto" : "none"}
+          preload={preload || (isPlaying ? "auto" : "metadata")}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
           {video.products && video.products.length > 0 ? (
-            <img src={video.products[0].imageUrl} alt="Product" className="w-full h-full object-cover opacity-50" />
+            <img 
+              src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+              alt="Product" 
+              className="w-full h-full object-cover opacity-50"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+              }} 
+            />
           ) : (
             <ShoppingBag className="w-12 h-12 text-zinc-700" />
           )}
@@ -148,6 +161,36 @@ const FeedVideo: React.FC<{
       {video.videoUrl && (
         <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded font-medium z-10">
           {formatTime(timeLeft)}
+        </div>
+      )}
+
+      {/* Product Image Overlay */}
+      {video.products && video.products.length > 0 && (
+        <div className="absolute bottom-10 right-2 flex -space-x-4 hover:space-x-1 transition-all duration-300 z-10">
+          {video.products.slice(0, 4).map((product, idx) => (
+            <div 
+              key={product.id || idx}
+              className="w-10 h-10 rounded-lg border-2 border-white/20 shadow-xl overflow-hidden bg-zinc-900 transition-transform hover:scale-110 hover:-translate-y-1 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(product.link, '_blank');
+              }}
+            >
+              <img 
+                src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+                alt="" 
+                className="w-full h-full object-cover" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                }}
+              />
+            </div>
+          ))}
+          {video.products.length > 4 && (
+            <div className="w-10 h-10 rounded-lg border-2 border-white/20 shadow-xl bg-purple-600 flex items-center justify-center text-[10px] font-bold text-white transition-transform hover:scale-110">
+              +{video.products.length - 4}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -252,22 +295,51 @@ export default function Home() {
       try {
         if (isEntreprise) {
           const data = await db.getVideosByEntreprise(user.id, user.id);
-          setVideos((data as any).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+          const validData = Array.isArray(data) ? data : [];
+          setVideos(validData.sort((a: any, b: any) => {
+            const timeA = new Date(a.createdAt || 0).getTime();
+            const timeB = new Date(b.createdAt || 0).getTime();
+            return timeB - timeA;
+          }));
         } else {
           const recommended = await db.getRecommendedVideos(user.id);
-          const filtered = (recommended as any[])
+          const validRecommended = Array.isArray(recommended) ? recommended : [];
+          const filtered = validRecommended
             .filter(v => v.videoUrl && v.videoUrl.trim() !== '');
           const shuffled = shuffleArray(filtered);
           setVideos(shuffled);
           cachedParticulierVideos = shuffled;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching videos:', error);
       } finally {
         setIsLoading(false);
       }
     };
     fetchVideos();
+
+    // Auto-refresh for Enterprise account to show real-time likes/stats
+    let interval: NodeJS.Timeout | null = null;
+    if (isEntreprise) {
+      interval = setInterval(async () => {
+        try {
+          const data = await db.getVideosByEntreprise(user.id, user.id);
+          if (Array.isArray(data)) {
+            setVideos(data.sort((a: any, b: any) => {
+              const timeA = new Date(a.createdAt || 0).getTime();
+              const timeB = new Date(b.createdAt || 0).getTime();
+              return timeB - timeA;
+            }));
+          }
+        } catch (err) {
+          console.error('Error auto-refreshing stats:', err);
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [user.id, isEntreprise]);
 
   // Sync state to cache
@@ -327,7 +399,7 @@ export default function Home() {
           const videoId = entry.target.getAttribute('data-video-id');
           if (!videoId) return;
 
-          if (entry.intersectionRatio > 0) {
+          if (entry.isIntersecting) {
             visibleVideosRef.current.set(videoId, entry.intersectionRatio);
           } else {
             visibleVideosRef.current.delete(videoId);
@@ -344,13 +416,17 @@ export default function Home() {
           }
         });
 
-        if (bestVideoId && maxRatio > 0.3) {
+        // Start playing if visible enough
+        if (bestVideoId && maxRatio > 0.4) {
           setPlayingVideoId(bestVideoId);
         } else if (visibleVideosRef.current.size === 0) {
           setPlayingVideoId(null);
         }
       },
-      { threshold: [0, 0.25, 0.5, 0.75, 1.0] }
+      { 
+        threshold: [0, 0.25, 0.5, 0.75, 1.0],
+        rootMargin: '-5% 0px -5% 0px' 
+      }
     );
 
     const videoElements = document.querySelectorAll('.feed-video-container');
@@ -359,14 +435,14 @@ export default function Home() {
     return () => {
       observer.disconnect();
     };
-  }, [videos, visibleCount, isEntreprise]);
+  }, [videos, visibleCount]);
 
   // Set initial playing video
   useEffect(() => {
     if (!isEntreprise && videos.length > 0 && !playingVideoId && visibleVideosRef.current.size === 0) {
       setPlayingVideoId(videos[0].id);
     }
-  }, [videos, isEntreprise, playingVideoId]);
+  }, [videos, playingVideoId, isEntreprise]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -426,7 +502,8 @@ export default function Home() {
     
     try {
       const recommended = await db.getRecommendedVideos(user.id);
-      const filtered = recommended.filter(v => v.videoUrl && v.videoUrl.trim() !== '');
+      const validRecommended = Array.isArray(recommended) ? recommended : [];
+      const filtered = validRecommended.filter(v => v.videoUrl && v.videoUrl.trim() !== '');
       const shuffled = shuffleArray(filtered);
       setVideos(shuffled);
       setVisibleCount(12);
@@ -490,7 +567,9 @@ export default function Home() {
     try {
       const updatedVideo = await db.toggleLike(user.id, videoId);
       if (updatedVideo) {
-        setVideos(currentVideos => currentVideos.map(v => v.id === videoId ? updatedVideo : v));
+        setVideos(currentVideos => currentVideos.map(v => 
+          v.id === videoId ? { ...v, likes: updatedVideo.likes, likedBy: updatedVideo.likedBy } : v
+        ));
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
@@ -625,16 +704,39 @@ export default function Home() {
         link: editFormData.link,
         category: editFormData.category,
         description: editFormData.description,
-        products: formattedProducts.length > 0 ? formattedProducts : undefined
+        products: formattedProducts
       });
 
       if (updatedVideo) {
-        setVideos(videos.map(v => v.id === updatedVideo.id ? updatedVideo : v));
+        setVideos(prev => prev.map(v => v.id === updatedVideo.id ? updatedVideo : v));
       }
+      
       setEditingVideo(null);
       setIsEditLoading(false);
-    } catch (err) {
-      setEditError('Failed to update video.');
+      
+      // Auto-refresh the whole list to be sure
+      if (isEntreprise) {
+        const freshData = await db.getVideosByEntreprise(user.id, user.id);
+        if (Array.isArray(freshData)) {
+          setVideos(freshData.sort((a, b) => {
+            const timeA = new Date(a.createdAt || 0).getTime();
+            const timeB = new Date(b.createdAt || 0).getTime();
+            return timeB - timeA;
+          }));
+        }
+      }
+
+      // Redirect to home and ensure scroll to top
+      navigate('/app/home');
+      setTimeout(() => {
+        const mainElement = document.querySelector('main');
+        if (mainElement) {
+          mainElement.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error('Update error:', err);
+      setEditError(`Erreur lors de la mise à jour: ${err?.message || 'Inconnue'}`);
       setIsEditLoading(false);
     }
   };
@@ -653,7 +755,10 @@ export default function Home() {
     ? videos.filter(v => v.category === selectedCategory) 
     : videos;
 
-  if (!hasAccess && isEntreprise) {
+  // Only Particuliers are blocked from seeing recommendation feed if trial expired?
+  // Actually Home for Entreprise is their own Studio.
+  // We should NOT block the Home view for Entreprise if they are showing their own videos.
+  /* if (!hasAccess && isEntreprise) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
         <div className="text-purple-500 font-bold text-6xl mb-6">V</div>
@@ -667,7 +772,15 @@ export default function Home() {
         </Link>
       </div>
     );
-  }
+  } */
+
+  const isAdjacent = (playingId: string | null, currentId: string) => {
+    if (!playingId) return false;
+    const index = videos.findIndex(v => v.id === currentId);
+    const playingIndex = videos.findIndex(v => v.id === playingId);
+    if (index === -1 || playingIndex === -1) return false;
+    return Math.abs(index - playingIndex) <= 3; // Preload 3 neighbors for better fluidity
+  };
 
   return (
     <div 
@@ -698,12 +811,6 @@ export default function Home() {
           </h1>
           {!isEntreprise && (
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => navigate('/app/shopping')}
-                className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full transition-colors border border-zinc-800"
-              >
-                <ShoppingBag className="w-5 h-5 text-zinc-400" />
-              </button>
               <button 
                 onClick={() => navigate('/app/search')}
                 className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full transition-colors border border-zinc-800"
@@ -799,35 +906,36 @@ export default function Home() {
               onToggleMute={() => setIsGlobalMuted(!isGlobalMuted)}
               viewerId={user.id}
               quality={adaptiveQuality}
+              preload={(!isEntreprise && (playingVideoId === video.id || isAdjacent(playingVideoId, video.id))) ? "auto" : "metadata"}
             />
 
             {/* Products Carousel */}
             {video.products && video.products.length > 0 && (
-              <div className="relative group/carousel px-4 md:px-0 pb-2">
+              <div className="relative group/carousel px-4 md:px-0 pb-4">
                 {/* Left Arrow (Desktop only) */}
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: -200, behavior: 'smooth' });
+                    e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: -240, behavior: 'smooth' });
                   }}
-                  className="absolute left-4 md:left-0 top-12 -translate-y-1/2 w-8 h-8 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 hidden md:flex hover:bg-black"
+                  className="absolute left-4 md:left-2 top-14 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 hidden md:flex hover:bg-black shadow-lg"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-6 h-6" />
                 </button>
 
-                <div className="carousel-content flex overflow-x-auto gap-3 scrollbar-hide snap-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x pt-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                   {video.products.map((product) => {
                     const finalPrice = product.discount 
                       ? product.price * (1 - product.discount / 100) 
                       : product.price;
                     
                     return (
-                      <div key={product.id} className="shrink-0 w-24 snap-start group/product">
+                      <div key={product.id} className="shrink-0 w-28 snap-start group/product">
                         <a 
                           href={product.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="relative block w-24 h-24 rounded-lg overflow-hidden shadow-lg"
+                          className="relative block w-28 h-28 rounded-xl overflow-hidden shadow-xl border border-white/5 bg-zinc-900"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (user.type === 'particulier') {
@@ -837,23 +945,37 @@ export default function Home() {
                             }
                           }}
                         >
-                          <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover transition-transform group-hover/product:scale-110" />
+                          <img 
+                            src={product.imageUrl || 'https://images.unsplash.com/photo-1417325384643-aac51acc9e5d?w=400&q=80'} 
+                            alt={product.title} 
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover/product:scale-110" 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1417325384643-aac51acc9e5d?w=400&q=80';
+                            }}
+                          />
                           
                           {/* Discount Badge */}
-                          {product.discount && (
-                            <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                          {product.discount && product.discount > 0 && (
+                            <div className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md z-10">
                               -{product.discount}%
                             </div>
                           )}
                           
                           {/* Price Overlay */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-1.5 pt-6">
-                            <div className="text-purple-400 font-bold text-xs text-center">
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-2 pt-8 z-10">
+                            <div className="text-purple-400 font-bold text-sm text-center drop-shadow-md">
                               {finalPrice.toFixed(2)}€
                             </div>
                           </div>
+
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-purple-600/20 opacity-0 group-hover/product:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="bg-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg transform translate-y-2 group-hover/product:translate-y-0 transition-transform">
+                              Voir l'article
+                            </div>
+                          </div>
                         </a>
-                        <p className="text-xs text-zinc-300 mt-1.5 truncate text-center font-medium px-1" title={product.title}>
+                        <p className="text-[11px] text-zinc-300 mt-2 truncate text-center font-medium px-1" title={product.title}>
                           {product.title}
                         </p>
                       </div>
@@ -865,11 +987,11 @@ export default function Home() {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: 200, behavior: 'smooth' });
+                    e.currentTarget.parentElement?.querySelector('.carousel-content')?.scrollBy({ left: 240, behavior: 'smooth' });
                   }}
-                  className="absolute right-4 md:right-0 top-12 -translate-y-1/2 w-8 h-8 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 hidden md:flex hover:bg-black"
+                  className="absolute right-4 md:right-2 top-14 -translate-y-1/2 w-10 h-10 bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity z-10 hidden md:flex hover:bg-black shadow-lg"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-6 h-6" />
                 </button>
               </div>
             )}
@@ -888,7 +1010,7 @@ export default function Home() {
                     <img src={video.entreprisePic} alt={video.entrepriseName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-purple-500 font-bold">
-                      {video.entrepriseName[0]}
+                      {video.entrepriseName?.[0] || '?'}
                     </div>
                   )}
                 </div>
@@ -902,15 +1024,15 @@ export default function Home() {
                   >
                     {video.title}
                   </h3>
-                  {!isEntreprise && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button 
-                        onClick={(e) => handleLike(e, video.id)}
-                        className={`flex items-center gap-1 text-xs font-medium transition-colors ${video.likedBy?.includes(user.id) ? 'text-purple-500' : 'text-zinc-400 hover:text-white'}`}
-                      >
-                        <ThumbsUp className={`w-3 h-3 ${video.likedBy?.includes(user.id) ? 'fill-current' : ''}`} />
-                        {video.likes}
-                      </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={(e) => handleLike(e, video.id)}
+                      className={`flex items-center gap-1 text-xs font-medium transition-colors ${video.likedBy?.includes(user.id) ? 'text-purple-500' : 'text-zinc-400 hover:text-white'}`}
+                    >
+                      <ThumbsUp className={`w-3 h-3 ${video.likedBy?.includes(user.id) ? 'fill-current' : ''}`} />
+                      {video.likes || 0}
+                    </button>
+                    {!isEntreprise && (
                       <a 
                         href={video.link}
                         target="_blank"
@@ -928,8 +1050,8 @@ export default function Home() {
                         <ExternalLink className="w-3 h-3" />
                         {t('home.discover')}
                       </a>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 {!isEntreprise && (
                   <div className="flex items-center gap-2 mt-1">
@@ -1007,6 +1129,28 @@ export default function Home() {
       {videos.length > visibleCount && (
         <div ref={observerTarget} className="h-20 flex items-center justify-center mt-4">
           <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" />
+        </div>
+      )}
+
+      {/* Expiry Warning for Entreprise */}
+      {!hasAccess && isEntreprise && (
+        <div className="mx-4 md:mx-0 mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-6 h-6 text-amber-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-amber-500 font-bold mb-1">Abonnement Requis</h3>
+            <p className="text-zinc-400 text-sm mb-3">
+              Votre période d'essai est terminée. Vos vidéos ne sont plus visibles par les utilisateurs du réseau Vionify jusqu'à l'activation d'un abonnement.
+            </p>
+            <Link 
+              to="/app/premium" 
+              className="inline-flex items-center gap-2 bg-amber-500 text-black px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-amber-400 transition-colors"
+            >
+              <Crown className="w-4 h-4" />
+              S'abonner maintenant
+            </Link>
+          </div>
         </div>
       )}
 
@@ -1180,7 +1324,14 @@ export default function Home() {
                           <div className="relative w-full aspect-square bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl overflow-hidden group hover:border-purple-500 transition-colors">
                             {product.imageUrl ? (
                               <>
-                                <img src={product.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                                <img 
+                                  src={product.imageUrl} 
+                                  alt="Preview" 
+                                  className="w-full h-full object-cover" 
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80';
+                                  }}
+                                />
                                 <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
                                   <ImageIcon className="w-6 h-6 text-white" />
                                   <input 

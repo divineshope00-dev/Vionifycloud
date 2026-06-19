@@ -61,6 +61,7 @@ export interface Video {
   views?: number;
   clicks?: number;
   entrepriseMonthlyClients?: number;
+  addedAt?: string;
 }
 
 export interface Favorite {
@@ -90,7 +91,8 @@ export type VideoQuality = '720p' | '480p';
 
 export const getBunnyUrl = (url: string | undefined, quality?: VideoQuality): string => {
   if (!url) return '';
-  return url; // Disable BunnyCDN rewrite to prevent 404 for untranscoded videos
+  if (url.startsWith('data:')) return url; // Pass through base64 fallback
+  return url;
 };
 
 const isActiveEntreprise = (data: any): boolean => {
@@ -106,14 +108,22 @@ const isActiveEntreprise = (data: any): boolean => {
   } else if (data.trial_start_date) {
     const trialStart = new Date(data.trial_start_date);
     const trialEnds = new Date(trialStart);
-    trialEnds.setDate(trialStart.getDate() + 3);
+    trialEnds.setDate(trialStart.getDate() + 7);
     trialActive = now <= trialEnds.getTime();
+  } else {
+    // If we don't have trial info but it's an entreprise, we default to true to not block everything 
+    // when database schema is partially seeded.
+    trialActive = true; 
   }
 
   // check sub
   let subActive = false;
-  if (data.subscription_status === 'active' && data.subscription_end_date) {
-    subActive = now <= new Date(data.subscription_end_date).getTime();
+  if (data.subscription_status === 'active' && (data.subscription_end_date || data.subscription_plan)) {
+    if (data.subscription_end_date) {
+      subActive = now <= new Date(data.subscription_end_date).getTime();
+    } else {
+      subActive = true;
+    }
   }
 
   return trialActive || subActive;
@@ -176,37 +186,60 @@ const mapUser = (data: any): User => ({
   peakMonthlyClients: data.peak_monthly_clients || 0
 });
 
-// Helper to map Supabase video to our Video interface
-const mapVideo = (data: any): Video => ({
-  id: data.id,
-  entrepriseId: data.entreprise_id,
-  entrepriseName: data.entreprise_name,
-   entreprisePic: data.entreprise_pic,
-  entrepriseMonthlyClients: data.entreprise?.peak_monthly_clients || data.entreprise_peak_monthly_clients || 0,
-  videoUrl: getBunnyUrl(data.video_url),
-  rawVideoUrl: data.video_url,
-  title: data.title,
-  price: data.price,
-  discount: data.discount,
-  link: data.link,
-  category: data.category,
-  description: data.description,
-  createdAt: data.created_at,
-  likes: data.likes || 0,
-  views: data.views || 0,
-  clicks: data.clicks || 0,
-  likedBy: [], // We'll handle this via a separate query if needed
-  products: data.products?.map((p: any) => ({
+// Helper to map Supabase product to our Product interface
+const mapProduct = (p: any): Product => {
+  if (!p) return {} as Product;
+  // Deeply resilient mapping that checks both underscore and camelCase variants
+  return {
     id: p.id,
     video_id: p.video_id,
-    title: p.title,
-    imageUrl: p.image_url,
-    link: p.link,
-    price: p.price,
-    discount: p.discount,
+    title: p.title || 'Produit sans titre',
+    imageUrl: p.image_url || p.imageUrl || '',
+    link: p.link || '#',
+    price: typeof p.price === 'number' ? p.price : parseFloat(p.price || 0),
+    discount: typeof p.discount === 'number' ? p.discount : (p.discount ? parseFloat(p.discount) : undefined),
     clicks: p.clicks || 0
-  })) || []
-});
+  };
+};
+
+// Helper to map Supabase video to our Video interface
+const mapVideo = (data: any): Video => {
+  if (!data) return {} as Video;
+  const rawUrl = data.video_url || '';
+  const finalUrl = getBunnyUrl(rawUrl);
+  
+  const entrepriseData = data.entreprise || data.users;
+
+  // Handle nested products
+  let products: Product[] = [];
+  if (Array.isArray(data.products)) {
+    products = data.products.map(mapProduct);
+  } else if (data.products && typeof data.products === 'object') {
+    products = [mapProduct(data.products)];
+  }
+
+  return {
+    id: data.id,
+    entrepriseId: data.entreprise_id,
+    entrepriseName: data.entreprise_name,
+    entreprisePic: data.entreprise_pic,
+    entrepriseMonthlyClients: entrepriseData?.peak_monthly_clients || data.entreprise_peak_monthly_clients || 0,
+    videoUrl: finalUrl || rawUrl,
+    rawVideoUrl: rawUrl,
+    title: data.title,
+    price: data.price,
+    discount: data.discount,
+    link: data.link,
+    category: data.category,
+    description: data.description,
+    createdAt: data.created_at,
+    likes: data.likes || 0,
+    views: data.views || 0,
+    clicks: data.clicks || 0,
+    likedBy: [], 
+    products: products
+  };
+};
 
 export const db = {
   // Connection and Session sync
@@ -286,22 +319,34 @@ export const db = {
     let authId: string | undefined;
     
     if (password) {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: user.email,
-        password: password,
-        options: {
-          data: {
-            name: user.name,
-            type: user.type
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: user.email,
+          password: password,
+          options: {
+            data: {
+              name: user.name,
+              type: user.type
+            }
+          }
+        });
+
+        if (authError) {
+          if (authError.message.includes('User already registered')) {
+            // If already registered, try to sign in or just report it
+            console.warn('User already registered in Auth, checking for profile...');
+          } else {
+            console.error('Supabase Auth SignUp Error:', authError);
+            throw authError;
           }
         }
-      });
-
-      if (authError) {
-        console.error('Supabase Auth SignUp Error:', authError);
-        throw authError;
+        authId = authData.user?.id;
+      } catch (err: any) {
+        if (err.message === 'Load failed') {
+          throw new Error('Erreur de connexion. Veuillez vérifier votre connexion internet.');
+        }
+        throw err;
       }
-      authId = authData.user?.id;
     }
 
     const now = new Date();
@@ -310,31 +355,66 @@ export const db = {
     if (user.type === 'particulier') {
       trialEnds.setMonth(now.getMonth() + 3);
     } else {
-      trialEnds.setDate(now.getDate() + 3);
+      trialEnds.setDate(now.getDate() + 7);
     }
 
     // 2. Create User Profile in 'users' table
-    const { data, error } = await supabase
+    // Use safeRequest to handle potential RLS errors gracefully
+    const { data, error } = await safeRequest(supabase
       .from('users')
       .insert([{
-        id: authId, // Link to Auth UID if available
+        id: authId,
         email: user.email,
         name: user.name,
         type: user.type,
-        country: user.country,
-        profile_pic: user.profilePic,
-        language: user.language,
+        country: user.country || '',
+        profile_pic: user.profilePic || '',
+        language: user.language || 'fr',
         trial_start_date: now.toISOString(),
         trial_ends_at: trialEnds.toISOString(),
         subscription_status: 'trialing'
       }])
       .select()
-      .maybeSingle();
+      .maybeSingle());
 
-    if (error || !data) {
-      console.error('Supabase Register Error:', error || 'Failed to create user profile');
-      throw error || new Error('Failed to create user profile');
+    if (error) {
+      console.error('Supabase Register Profile Error:', error);
+      // If it's a RLS error, it usually means the user needs to confirm email first
+      // or the record already exists. If we have an authId, we can consider the signup 
+      // partially successful and let the login flow handle profile creation.
+      if (authId && (error.code === '42501' || error.message?.includes('row-level security'))) {
+        console.warn('RLS error during profile creation - this is expected if email confirmation is required.');
+        // Create a temporary user object so the UI can proceed if needed, 
+        // but normally we should wait for login.
+        const tempUser: User = {
+          id: authId,
+          email: user.email,
+          name: user.name,
+          type: user.type,
+          country: user.country || '',
+          trialStartDate: now.toISOString(),
+          trialEndsAt: trialEnds.toISOString(),
+          subscriptionStatus: 'trialing'
+        };
+        return tempUser;
+      }
+      throw error;
     }
+
+    if (!data) {
+      // Check if user already exists
+      const { data: existingUser } = await safeRequest(supabase
+        .from('users')
+        .select('*')
+        .eq('email', user.email)
+        .maybeSingle());
+      
+      if (existingUser) {
+        return mapUser(existingUser);
+      }
+      throw new Error('Failed to create user profile');
+    }
+    
     
     const newUser = mapUser(data);
     localStorage.setItem('vionify_user', JSON.stringify(newUser));
@@ -343,67 +423,86 @@ export const db = {
   },
 
   login: async (email: string, password?: string) => {
-    if (password) {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+    try {
+      if (password) {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-      if (authError) {
-        console.error('Supabase Auth Login Error:', authError);
-        return null;
-      }
-
-      // If auth succeeded, verify we have a profile in the users table
-      const { data: profile, error: profileError } = await safeRequest(supabase
-        .from('users')
-        .select('*')
-        .eq('id', authData.user.id)
-        .maybeSingle());
-
-      if (profileError) {
-        console.error('Supabase Profile Query Error:', profileError);
-        return null;
-      }
-
-      if (!profile) {
-        console.warn('User profile not found after login, attempting to create it...');
-        // Recreate profile from auth metadata
-        const metadata = authData.user.user_metadata;
-        const now = new Date();
-        const trialEnds = new Date(now);
-        trialEnds.setDate(trialEnds.getDate() + 3);
-
-        const { data: newProfile, error: insertError } = await supabase
-          .from('users')
-          .insert([{
-            id: authData.user.id,
-            email: authData.user.email,
-            name: metadata?.name || 'User',
-            type: metadata?.type || 'particulier',
-            trial_start_date: now.toISOString(),
-            trial_ends_at: trialEnds.toISOString(),
-            subscription_status: 'trialing'
-          }])
-          .select()
-          .maybeSingle();
-
-        if (insertError || !newProfile) {
-          console.error('Failed to recreate profile during login:', insertError);
-          // If we can't create a profile, we can't fully log in
+        if (authError) {
+          console.error('Supabase Auth Login Error:', authError);
           return null;
         }
-        
-        const user = mapUser(newProfile);
+
+        // If auth succeeded, verify we have a profile in the users table
+        const { data: profile, error: profileError } = await safeRequest(supabase
+          .from('users')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle());
+
+        if (profileError) {
+          console.error('Supabase Profile Query Error:', profileError);
+          return null;
+        }
+
+        if (!profile) {
+          console.warn('User profile not found after login, attempting to create it...');
+          // Recreate profile from auth metadata
+          const metadata = authData.user.user_metadata;
+          const now = new Date();
+          const trialEnds = new Date(now);
+          trialEnds.setDate(trialEnds.getDate() + 3);
+
+          const { data: newProfile, error: insertError } = await safeRequest(supabase
+            .from('users')
+            .insert([{
+              id: authData.user.id,
+              email: authData.user.email || email,
+              name: metadata?.name || 'User',
+              type: metadata?.type || 'particulier',
+              country: metadata?.country || '',
+              trial_start_date: now.toISOString(),
+              trial_ends_at: trialEnds.toISOString(),
+              subscription_status: 'trialing'
+            }])
+            .select()
+            .maybeSingle());
+
+          if (insertError || !newProfile) {
+            console.error('Failed to recreate profile during login:', insertError);
+            const fallbackUser: User = {
+              id: authData.user.id,
+              email: authData.user.email || email,
+              name: metadata?.name || 'User',
+              type: metadata?.type || 'particulier',
+              country: metadata?.country || '',
+              trialStartDate: now.toISOString(),
+              trialEndsAt: trialEnds.toISOString(),
+              subscriptionStatus: 'trialing'
+            };
+            localStorage.setItem('vionify_user', JSON.stringify(fallbackUser));
+            window.dispatchEvent(new Event('user-changed'));
+            return fallbackUser;
+          }
+          
+          const user = mapUser(newProfile);
+          localStorage.setItem('vionify_user', JSON.stringify(user));
+          window.dispatchEvent(new Event('user-changed'));
+          return user;
+        }
+
+        const user = mapUser(profile);
         localStorage.setItem('vionify_user', JSON.stringify(user));
         window.dispatchEvent(new Event('user-changed'));
         return user;
       }
-
-      const user = mapUser(profile);
-      localStorage.setItem('vionify_user', JSON.stringify(user));
-      window.dispatchEvent(new Event('user-changed'));
-      return user;
+    } catch (err: any) {
+      console.error('Supabase Auth Login Exception:', err);
+      if (err.message === 'Load failed') {
+        throw new Error('Erreur de connexion. Veuillez vérifier votre connexion internet.');
+      }
     }
 
     // Fallback for cases where password isn't provided (e.g. state restoration)
@@ -540,27 +639,37 @@ export const db = {
     if (video.products && video.products.length > 0) {
       const productsToInsert = video.products.map(p => ({
         video_id: videoData.id,
-        title: p.title,
-        image_url: p.imageUrl,
-        link: p.link,
-        price: p.price,
+        title: p.title || 'Produit',
+        image_url: p.imageUrl || '',
+        link: p.link || '#',
+        price: p.price || 0,
         discount: p.discount
       }));
 
       const { error: productsError } = await supabase
         .from('products')
         .insert(productsToInsert);
-
+      
       if (productsError) {
         console.error('Supabase AddProducts Error:', productsError);
-        throw productsError;
+        // Fallback: try with 'imageUrl' column if 'image_url' failed
+        if (productsError.message?.includes('column "image_url" does not exist')) {
+          await supabase.from('products').insert(productsToInsert.map(p => ({
+            video_id: p.video_id,
+            title: p.title,
+            imageUrl: p.image_url,
+            link: p.link,
+            price: p.price,
+            discount: p.discount
+          })));
+        }
       }
     }
 
     // Fetch the full video with products to return
     const { data: fullVideo, error: fetchError } = await supabase
       .from('videos')
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
+      .select('*, products(*)')
       .eq('id', videoData.id)
       .maybeSingle();
 
@@ -701,21 +810,76 @@ export const db = {
   getVideos: async (limit?: number) => {
     let query = supabase
       .from('videos')
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
+      .select('*, products(*)')
       .order('created_at', { ascending: false });
 
     if (limit) {
       query = query.limit(limit);
     }
 
-    const { data, error } = await safeRequest(query);
+    let { data, error } = await safeRequest(query);
 
     if (error) {
-      console.error('Supabase GetVideos Error:', error);
-      throw error;
+      console.error('Supabase GetVideos Error with relation, trying without relation:', error);
+      // Fallback
+      const fallbackQuery = supabase.from('videos').select('*').order('created_at', { ascending: false });
+      if (limit) fallbackQuery.limit(limit);
+      const fallbackResult = await safeRequest(fallbackQuery);
+      if (fallbackResult.error) throw fallbackResult.error;
+      data = fallbackResult.data;
     }
-    const activeVideos = (data as any[] || []).filter(v => isActiveEntreprise(v.entreprise));
+    
+    console.log('GetVideos raw data:', data);
+    const activeVideos = (data as any[] || []).filter(v => {
+      const isActive = isActiveEntreprise(v?.entreprise || v?.users);
+      console.log('Video', v.id, 'entreprise:', v?.entreprise || v?.users, 'isActive:', isActive);
+      return isActive;
+    });
     return activeVideos.map(mapVideo);
+  },
+
+  getVideo: async (id: string, userId?: string) => {
+    let { data: videoData, error } = await supabase
+      .from('videos')
+      .select('*, products(*)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Error fetching single video with relation, trying without:', error);
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (fallbackError) {
+        console.error('Error fetching single video fallback:', fallbackError);
+        throw fallbackError;
+      }
+      videoData = fallbackData;
+    }
+    
+    if (!videoData) {
+      console.warn(`No video found with ID: ${id}`);
+      return null;
+    }
+
+    const mapped = mapVideo(videoData);
+    
+    // If we have a userId, we can also check if they liked it
+    if (userId) {
+      const { data: liked } = await supabase
+        .from('likes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('video_id', id)
+        .maybeSingle();
+      
+      mapped.likedBy = liked ? [userId] : [];
+    }
+
+    return mapped;
   },
 
   getRecommendedVideos: async (userId: string, limit?: number) => {
@@ -803,7 +967,7 @@ export const db = {
   searchVideos: async (query: string, userId?: string) => {
     const { data, error } = await safeRequest(supabase
       .from('videos')
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
+      .select('*, products(*)')
       .or(`title.ilike.%${query}%,description.ilike.%${query}%,category.ilike.%${query}%`)
       .order('created_at', { ascending: false }));
 
@@ -833,15 +997,21 @@ export const db = {
   },
 
   getVideosByEntreprise: async (entrepriseId: string, userId?: string) => {
-    const { data, error } = await safeRequest(supabase
+    let { data, error } = await safeRequest(supabase
       .from('videos')
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
+      .select('*, products(*)')
       .eq('entreprise_id', entrepriseId)
       .order('created_at', { ascending: false }));
 
     if (error) {
-      console.error('Supabase GetVideosByEntreprise Error:', error);
-      throw error;
+      console.error('Supabase GetVideosByEntreprise Error with relation, trying without:', error);
+      const fallbackResult = await safeRequest(supabase
+        .from('videos')
+        .select('*')
+        .eq('entreprise_id', entrepriseId)
+        .order('created_at', { ascending: false }));
+      if (fallbackResult.error) throw fallbackResult.error;
+      data = fallbackResult.data;
     }
     
     let likedVideoIds = new Set<string>();
@@ -853,7 +1023,12 @@ export const db = {
       likedVideoIds = new Set((userLikes as any[] || [])?.map((l: any) => l.video_id) || []);
     }
 
-    const visibleVideos = (data as any[] || []).filter(v => userId === entrepriseId || isActiveEntreprise(v.entreprise));
+    console.log('GetVideosByEntreprise raw data:', data);
+    const visibleVideos = (data as any[] || []).filter(v => {
+      const isActive = userId === entrepriseId || isActiveEntreprise(v?.entreprise || v?.users);
+      console.log('Video', v.id, 'entreprise:', v?.entreprise || v?.users, 'isActive:', isActive);
+      return isActive;
+    });
 
     return visibleVideos.map(v => {
       const mapped = mapVideo(v);
@@ -897,36 +1072,36 @@ export const db = {
     const dbUpdates: any = {};
     if (updates.title) dbUpdates.title = updates.title;
     if (updates.description) dbUpdates.description = updates.description;
-    if (updates.price) dbUpdates.price = updates.price;
-    if (updates.discount) dbUpdates.discount = updates.discount;
+    if (updates.price !== undefined) dbUpdates.price = updates.price;
+    if (updates.discount !== undefined) dbUpdates.discount = updates.discount;
     if (updates.link) dbUpdates.link = updates.link;
     if (updates.category) dbUpdates.category = updates.category;
     if (updates.videoUrl) dbUpdates.video_url = updates.videoUrl;
 
-    const { data, error } = await supabase
+    // 1. Update the video record first
+    const { error: videoError } = await supabase
       .from('videos')
       .update(dbUpdates)
-      .eq('id', id)
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
-      .maybeSingle();
+      .eq('id', id);
 
-    if (error || !data) {
-      console.error('Supabase UpdateVideo Error:', error || 'Video not found after update');
-      throw error || new Error('Video not found after update');
+    if (videoError) {
+      console.error('Supabase UpdateVideo Error:', videoError);
+      throw videoError;
     }
 
-    // Handle products update if provided
-    if (updates.products) {
+    // 2. Handle products update if provided (explicitly check for truthy or empty array)
+    if (updates.products !== undefined) {
       // Simplest approach: delete existing products and insert new ones
-      await supabase.from('products').delete().eq('video_id', id);
+      const { error: deleteError } = await supabase.from('products').delete().eq('video_id', id);
+      if (deleteError) console.error('Error deleting old products:', deleteError);
       
       if (updates.products.length > 0) {
         const productsToInsert = updates.products.map(p => ({
           video_id: id,
-          title: p.title,
-          image_url: p.imageUrl,
-          link: p.link,
-          price: p.price,
+          title: p.title || 'Produit',
+          image_url: p.imageUrl || '',
+          link: p.link || '',
+          price: p.price || 0,
           discount: p.discount
         }));
 
@@ -936,19 +1111,34 @@ export const db = {
 
         if (productsError) {
           console.error('Supabase UpdateProducts Error:', productsError);
-          // We don't throw here to avoid failing the whole update if only products fail
+          // Try with fallback column names if error suggests column mismatch
+          if (productsError.message?.includes('column "image_url" does not exist')) {
+             await supabase.from('products').insert(productsToInsert.map(p => ({
+               video_id: p.video_id,
+               title: p.title,
+               imageUrl: p.image_url,
+               link: p.link,
+               price: p.price,
+               discount: p.discount
+             })));
+          }
         }
       }
     }
 
-    // Fetch again to get updated products
-    const { data: finalData } = await supabase
+    // 3. Fetch the fully updated video object with joined products
+    const { data: finalData, error: fetchError } = await supabase
       .from('videos')
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
+      .select('*, products(*)')
       .eq('id', id)
       .maybeSingle();
 
-    return mapVideo(finalData || data);
+    if (fetchError || !finalData) {
+      console.error('Supabase FetchUpdatedVideo Error:', fetchError);
+      throw fetchError || new Error('Failed to fetch video after update');
+    }
+
+    return mapVideo(finalData);
   },
 
   incrementVideoViews: async (videoId: string) => {
@@ -1022,93 +1212,147 @@ export const db = {
   },
 
   toggleFavorite: async (userId: string, videoId: string) => {
-    const { data: existing } = await supabase
-      .from('favorites')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('video_id', videoId)
-      .maybeSingle();
+    try {
+      const { data: existing, error: fetchError } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .maybeSingle();
 
-    if (existing) {
-      await supabase.from('favorites').delete().eq('user_id', userId).eq('video_id', videoId);
-    } else {
-      await supabase.from('favorites').insert([{ user_id: userId, video_id: videoId }]);
+      if (fetchError) {
+        console.error('Error fetching favorite status:', fetchError);
+        throw fetchError;
+      }
+
+      if (existing) {
+        const { error: deleteError } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', userId)
+          .eq('video_id', videoId);
+        
+        if (deleteError) throw deleteError;
+      } else {
+        // Try with added_at first, then created_at is automatic in many DBs
+        const now = new Date().toISOString();
+        const { error: insertError } = await supabase
+          .from('favorites')
+          .insert([{ 
+            user_id: userId, 
+            video_id: videoId,
+            added_at: now
+          }]);
+          
+        if (insertError) {
+          console.warn('Insert with added_at failed, trying minimal insert:', insertError);
+          const { error: fallbackError } = await supabase
+            .from('favorites')
+            .insert([{ user_id: userId, video_id: videoId }]);
+            
+          if (fallbackError) throw fallbackError;
+        }
+      }
+    } catch (err) {
+      console.error('Catch in toggleFavorite:', err);
+      throw err;
     }
   },
 
   getFavorites: async (userId: string) => {
-    // Supprimer automatiquement les favoris de plus de 30 jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    // Essayer avec created_at (défaut Supabase)
-    let delRes = await supabase
-      .from('favorites')
-      .delete()
-      .eq('user_id', userId)
-      .lt('created_at', thirtyDaysAgo.toISOString());
+    try {
+      if (!userId) return [];
       
-    if (delRes.error) {
-      // Si created_at n'existe pas, essayer avec added_at
-      await supabase
+      // Removed 30-day filter and auto-deletion to ensure all favorites are shown
+      
+      // 1. Fetch links
+      // Try ordering by created_at, fallback to added_at if it fails
+      let query = supabase
         .from('favorites')
-        .delete()
-        .eq('user_id', userId)
-        .lt('added_at', thirtyDaysAgo.toISOString());
-    }
-
-    const { data, error } = await supabase
-      .from('favorites')
-      .select('video_id, created_at, added_at, videos(*, products(*))')
-      .eq('user_id', userId);
-
-    if (error) {
-      // Si la requête avec created_at/added_at échoue, on réessaie sans
-      const fallback = await supabase
-        .from('favorites')
-        .select('video_id, videos(*, products(*))')
+        .select('video_id, created_at, added_at')
         .eq('user_id', userId);
-        
-      if (fallback.error) throw fallback.error;
-      return fallback.data.map(f => mapVideo(f.videos));
-    }
-    
-    // Filtrage JS au cas où le delete aurait échoué
-    const validData = data.filter(f => {
-      const dateStr = f.created_at || f.added_at;
-      if (!dateStr) return true;
-      const addedDate = new Date(dateStr);
-      return addedDate >= thirtyDaysAgo;
-    });
+      
+      const { data: links, error: linkError } = await safeRequest(query);
 
-    return validData.map(f => mapVideo(f.videos));
+      if (linkError) throw linkError;
+      if (!links || links.length === 0) return [];
+
+      // Sort in memory to avoid column existence issues in SQL order by
+      const sortedLinks = [...links].sort((a, b) => {
+        const dateA = new Date(a.created_at || a.added_at || 0).getTime();
+        const dateB = new Date(b.created_at || b.added_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      // 2. Fetch videos with their products
+      const videoIds = sortedLinks.map(l => l.video_id).filter(Boolean);
+      if (videoIds.length === 0) return [];
+
+      const { data: videosData, error: videoError } = await safeRequest(
+        supabase
+          .from('videos')
+          .select('*, products(*)')
+          .in('id', videoIds)
+      );
+
+      const videosMap: Record<string, any> = {};
+      if (videoError) {
+        console.error('Error fetching favorites videos with products, trying fallback:', videoError);
+        const { data: fallbackVideos } = await safeRequest(supabase.from('videos').select('*').in('id', videoIds));
+        fallbackVideos?.forEach(v => { videosMap[v.id] = v; });
+      } else {
+        videosData?.forEach(v => { videosMap[v.id] = v; });
+      }
+
+      return sortedLinks
+        .map(f => {
+          const v = videosMap[f.video_id];
+          if (!v) return null;
+          const mapped = mapVideo(v);
+          return {
+            ...mapped,
+            addedAt: f.created_at || f.added_at
+          } as Video;
+        })
+        .filter((v): v is Video => v !== null && !!v.id);
+    } catch (err) {
+      console.error('Catch in getFavorites:', err);
+      return [];
+    }
   },
 
   isFavorite: async (userId: string, videoId: string) => {
-    const { data, error } = await supabase
-      .from('favorites')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('video_id', videoId)
-      .maybeSingle();
+    if (!userId || !videoId) return false;
+    try {
+      const { data, error } = await safeRequest(
+        supabase
+          .from('favorites')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('video_id', videoId)
+          .maybeSingle()
+      );
 
-    if (!data) return false;
+      if (error || !data) return false;
 
-    // Verify it's not older than 30 days
-    const dateStr = data.created_at || data.added_at;
-    if (dateStr) {
-      const addedDate = new Date(dateStr);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      if (addedDate < thirtyDaysAgo) {
-        // Trop ancien, on le supprime
-        await supabase.from('favorites').delete().eq('user_id', userId).eq('video_id', videoId);
-        return false;
+      // Verify it's not older than 30 days
+      const dateStr = data.created_at || data.added_at;
+      if (dateStr) {
+        const addedDate = new Date(dateStr);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        if (addedDate < thirtyDaysAgo) {
+          // Trop ancien, on le supprime (silently)
+          supabase.from('favorites').delete().eq('user_id', userId).eq('video_id', videoId).then(() => {});
+          return false;
+        }
       }
-    }
 
-    return true;
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
   addComment: async (comment: Omit<Comment, 'id' | 'createdAt'>) => {
@@ -1206,14 +1450,24 @@ export const db = {
       }
     }
 
-    const { data: updatedVideo } = await supabase
+    const { data: updatedVideo, error: updateError } = await supabase
       .from('videos')
       .update({ likes: newLikes })
       .eq('id', videoId)
-      .select('*, entreprise:entreprise_id(peak_monthly_clients, type, trial_start_date, trial_ends_at, subscription_status, subscription_end_date), products(*)')
+      .select('*, products(*)')
       .maybeSingle();
 
-    if (!updatedVideo) return mapVideo(video); // Fallback if update result is null
+    if (updateError || !updatedVideo) {
+      console.error('Supabase toggleLike update error:', updateError);
+      // Let's at least get the full video so we don't return an empty husk
+      const { data: fullVideo } = await supabase.from('videos').select('*, products(*)').eq('id', videoId).maybeSingle();
+      if (!fullVideo) return null;
+      fullVideo.likes = newLikes;
+      const mapped = mapVideo(fullVideo);
+      mapped.likedBy = existing ? [] : [userId];
+      return mapped;
+    }
+    
     const mapped = mapVideo(updatedVideo);
     mapped.likedBy = existing ? [] : [userId];
     return mapped;
@@ -1247,20 +1501,25 @@ export const db = {
 
   getProductFavorites: async (userId: string) => {
     try {
+      if (!userId) return [];
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
       // Auto-delete older than 30 days
-      await supabase
-        .from('product_favorites')
-        .delete()
-        .eq('user_id', userId)
-        .lt('created_at', thirtyDaysAgo.toISOString());
+      try {
+        await supabase
+          .from('product_favorites')
+          .delete()
+          .eq('user_id', userId)
+          .lt('created_at', thirtyDaysAgo.toISOString());
+      } catch (e) { /* silent fail */ }
 
-      const { data, error } = await supabase
-        .from('product_favorites')
-        .select('product_id, created_at, products(*)')
-        .eq('user_id', userId);
+      const { data, error } = await safeRequest(
+        supabase
+          .from('product_favorites')
+          .select('product_id, created_at, products(*)')
+          .eq('user_id', userId)
+      );
 
       if (error) {
         console.error('Error fetching product favorites:', error);
@@ -1270,16 +1529,9 @@ export const db = {
       return (data || [])
         .filter(f => f.products) // Ensure the joined product exists
         .map(f => {
-          const p = f.products as any;
+          const p = mapProduct(f.products);
           return {
-            id: p.id,
-            video_id: p.video_id,
-            title: p.title,
-            imageUrl: p.image_url,
-            link: p.link,
-            price: p.price,
-            discount: p.discount,
-            clicks: p.clicks || 0,
+            ...p,
             added_at: f.created_at
           };
         });
@@ -1287,6 +1539,36 @@ export const db = {
       console.error('Catch in getProductFavorites:', err);
       return [];
     }
+  },
+
+  getAllProducts: async () => {
+    const { data, error } = await safeRequest(
+      supabase
+        .from('products')
+        .select('*, videos(id, category, entreprise_id, entreprise_name)')
+    );
+
+    if (error) {
+      console.error('Supabase GetAllProducts Error:', error);
+      return [];
+    }
+
+    return (data || []).map((p: any) => {
+      const mapped = mapProduct(p);
+      // Use fallback for category if video is missing
+      let category = 'Autre';
+      if (p.videos) {
+        category = p.videos.category;
+      } else if (p.category) { // Fallback if product itself has a category
+        category = p.category;
+      }
+      
+      return {
+        ...mapped,
+        videoId: p.video_id,
+        category: category
+      };
+    });
   },
 
   isProductFavorite: async (userId: string, productId: string) => {

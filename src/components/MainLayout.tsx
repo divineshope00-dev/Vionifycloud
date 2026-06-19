@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Home, PlusSquare, Library as LibraryIcon, Crown, User as UserIcon, Star, X, AlertCircle, Wand2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Home, PlusSquare, Library as LibraryIcon, Crown, User as UserIcon, Star, X, AlertCircle, ShoppingBag } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isTrialExpired, hasActiveSubscription } from '../utils/subscription';
 import EnterpriseOnboarding from './EnterpriseOnboarding';
-import CornerAssistant from './CornerAssistant';
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -19,6 +18,13 @@ export default function MainLayout() {
   const { t } = useLanguage();
 
   useEffect(() => {
+    const handleUserChange = () => {
+      const updatedUser = db.getCurrentUser();
+      setUser(updatedUser);
+    };
+
+    window.addEventListener('user-changed', handleUserChange);
+    
     const currentUser = db.getCurrentUser();
     if (!currentUser) {
       // Save the current path to redirect back after login/signup
@@ -73,6 +79,10 @@ export default function MainLayout() {
         }
       }
     }
+
+    return () => {
+      window.removeEventListener('user-changed', handleUserChange);
+    };
   }, [navigate, location.pathname, location.search]);
 
   const closeExpiryWarning = () => {
@@ -121,10 +131,8 @@ export default function MainLayout() {
     ...(isEntreprise 
       ? [
           { path: '/app/publish', icon: PlusSquare, label: t('nav.publish') },
-          // { path: '/app/video-ia', icon: Wand2, label: 'VideoIA' }
         ]
       : [
-          { path: '/app/library', icon: LibraryIcon, label: t('nav.library') },
           { path: '/app/club', icon: Star, label: t('nav.club') }
         ]
     ),
@@ -134,9 +142,6 @@ export default function MainLayout() {
 
   return (
     <div className="h-[100dvh] bg-black text-white flex flex-col overflow-hidden select-none">
-      {/* Corner AI Assistant - Only for Particulier */}
-      {!isEntreprise && <CornerAssistant />}
-
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0 md:pl-24 overscroll-none scroll-smooth">
         <div className="max-w-[2000px] mx-auto min-h-full">

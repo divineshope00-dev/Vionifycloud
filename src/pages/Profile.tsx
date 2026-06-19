@@ -13,15 +13,27 @@ export default function Profile() {
   const { language, setLanguage, t } = useLanguage();
   
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [monthlyClients, setMonthlyClients] = useState<number>(user.peakMonthlyClients || 0);
+  const [profileFile, setProfileFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: user.name || '',
     country: user.country || '',
     profilePic: user.profilePic || ''
   });
+
+  useEffect(() => {
+    setFormData({
+      name: user.name || '',
+      country: user.country || '',
+      profilePic: user.profilePic || ''
+    });
+    setProfileFile(null);
+  }, [user]);
 
   useEffect(() => {
     if (user.type === 'entreprise') {
@@ -46,13 +58,31 @@ export default function Profile() {
   };
 
   const handleSave = async () => {
-    await db.updateUser(formData);
-    setIsEditing(false);
+    setIsSaving(true);
+    try {
+      let finalProfilePic = formData.profilePic;
+      if (profileFile) {
+        const fileName = `${user.id}-profile-${Date.now()}`;
+        finalProfilePic = await db.uploadFile('vionify-assets', `profiles/${fileName}`, profileFile);
+      }
+      
+      await db.updateUser({ ...formData, profilePic: finalProfilePic });
+      setIsEditing(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      setProfileFile(null);
+    } catch (error) {
+      console.error('Update user error:', error);
+      alert('Une erreur est survenue lors de la sauvegarde.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setProfileFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({ ...formData, profilePic: reader.result as string });
@@ -127,21 +157,30 @@ export default function Profile() {
           )}
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-3">
           {isEditing ? (
             <button 
               onClick={handleSave}
-              className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-full font-medium transition-colors"
+              disabled={isSaving}
+              className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-full font-medium transition-colors flex items-center gap-2"
             >
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('profile.save')}
             </button>
           ) : (
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-2 rounded-full font-medium transition-colors border border-zinc-700"
-            >
-              {t('profile.edit')}
-            </button>
+            <div className="flex items-center gap-3">
+              {saveSuccess && (
+                <span className="text-green-500 text-sm font-medium animate-in fade-in slide-in-from-right-4">
+                  Enregistré !
+                </span>
+              )}
+              <button 
+                onClick={() => setIsEditing(true)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-2 rounded-full font-medium transition-colors border border-zinc-700"
+              >
+                {t('profile.edit')}
+              </button>
+            </div>
           )}
         </div>
       </div>
