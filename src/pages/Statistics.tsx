@@ -93,7 +93,13 @@ export default function Statistics() {
                 <div className="flex gap-4 items-center">
                   <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
                     {video.videoUrl ? (
-                      <video src={video.videoUrl} className="w-full h-full object-cover" />
+                      <video 
+                        src={video.videoUrl.includes('#t=') ? video.videoUrl : `${video.videoUrl}#t=0.001`} 
+                        className="w-full h-full object-cover"
+                        preload="metadata"
+                        playsInline
+                        muted
+                      />
                     ) : video.products && video.products.length > 0 ? (
                       <img 
                         src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 

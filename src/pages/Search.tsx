@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
-import { Search as SearchIcon, Lock, Play, ExternalLink, ThumbsUp, ShoppingBag } from 'lucide-react';
+import { Search as SearchIcon, Lock, Play, ExternalLink, ThumbsUp, ShoppingBag, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { db, User, Video, getBunnyUrl, VideoQuality } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
@@ -164,22 +164,41 @@ export default function Search() {
   const adaptiveQuality = useAdaptiveQuality();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Video[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const hasAccess = canAccessContent(user);
 
   useEffect(() => {
-    const performSearch = async () => {
-      if (query.trim()) {
-        let searchResults = await db.searchVideos(query, user.id);
-        if (user.type !== 'entreprise') {
-          searchResults = searchResults.filter(v => v.videoUrl && v.videoUrl.trim() !== '');
+    let ignore = false;
+    const handler = setTimeout(async () => {
+      // Use the raw query but trim for database efficiency
+      const searchTerm = query.trim();
+      
+      if (searchTerm.length > 0) {
+        setIsLoading(true);
+        try {
+          // Perform search
+          const searchResults = await db.searchVideos(searchTerm, user?.id);
+          
+          if (!ignore) {
+            setResults(searchResults);
+          }
+        } catch (error) {
+          console.error('Search UI error:', error);
+          if (!ignore) setResults([]);
+        } finally {
+          if (!ignore) setIsLoading(false);
         }
-        setResults(searchResults);
       } else {
         setResults([]);
+        setIsLoading(false);
       }
+    }, 100); // Optimized for "instant" feel while maintaining stability
+
+    return () => {
+      ignore = true;
+      clearTimeout(handler);
     };
-    performSearch();
-  }, [query, user.type]);
+  }, [query, user.id, user.type]);
 
   const handleLike = async (e: React.MouseEvent, videoId: string) => {
     e.stopPropagation();
@@ -230,6 +249,11 @@ export default function Search() {
             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 transition-colors"
             autoFocus
           />
+          {isLoading && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -247,7 +271,7 @@ export default function Search() {
         ))}
       </div>
 
-      {query.trim() && results.length === 0 && (
+      {query.trim() && results.length === 0 && !isLoading && (
         <div className="text-center py-20 text-zinc-500">
           {t('search.noResults')}
         </div>

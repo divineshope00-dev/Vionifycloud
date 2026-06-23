@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Heart, MessageSquare, Share2, ThumbsUp, ExternalLink, Play, ChevronLeft, ChevronRight, ShoppingBag, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
+import { Heart, MessageSquare, Share2, ThumbsUp, ExternalLink, Play, ChevronLeft, ChevronRight, ShoppingBag, MoreVertical, Edit2, Trash2, X, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { db, User, Video, Comment, getBunnyUrl, VideoQuality, Product } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
@@ -100,10 +100,28 @@ export default function VideoDetail() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const cleanupSubscription = useRef<(() => void) | null>(null);
 
+  const [showAd, setShowAd] = useState(false);
+  const adVideoRef = useRef<HTMLVideoElement>(null);
+  const [adVideoUrl, setAdVideoUrl] = useState('');
+  const [adCurrentTime, setAdCurrentTime] = useState(0);
+  const [adDuration, setAdDuration] = useState(15);
+  const [isAdMuted, setIsAdMuted] = useState(false);
+
+  const adProgress = adDuration > 0 ? (adCurrentTime / adDuration) * 100 : 0;
+
+  const VIDEO_ADS = [
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+  ];
+  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=1247e030e97da3f4aee3";
+
   useEffect(() => {
     // Reset tracking state and cleanup subscription when video ID changes
     setHasTrackedMeaningfulView(false);
     setMonthlyClients(0);
+    setShowAd(false);
     
     return () => {
       if (cleanupSubscription.current) {
@@ -112,6 +130,50 @@ export default function VideoDetail() {
       }
     };
   }, [id]);
+
+  const handleVideoEnded = () => {
+    if (user?.type !== 'entreprise') {
+      const index = Math.floor(Math.random() * VIDEO_ADS.length);
+      setAdVideoUrl(VIDEO_ADS[index]);
+      setAdCurrentTime(0);
+      setAdDuration(15);
+      setShowAd(true);
+      try {
+        window.open(HILLTOP_ADS_LINK, '_blank');
+      } catch (e) {
+        console.warn("Popup blocked, showing ad overlay");
+      }
+    }
+  };
+
+  const handleAdTimeUpdate = () => {
+    if (adVideoRef.current) {
+      setAdCurrentTime(adVideoRef.current.currentTime);
+    }
+  };
+
+  const handleAdLoadedMetadata = () => {
+    if (adVideoRef.current) {
+      setAdDuration(adVideoRef.current.duration || 15);
+    }
+  };
+
+  const handleAdEnded = () => {
+    handleCloseAd();
+  };
+
+  const handleCloseAd = () => {
+    setShowAd(false);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleAdClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(HILLTOP_ADS_LINK, '_blank');
+  };
 
   useEffect(() => {
     if (video) {
@@ -144,7 +206,7 @@ export default function VideoDetail() {
 
   useEffect(() => {
     if (videoRef.current) {
-      if (isWindowFocused) {
+      if (isWindowFocused && !showAd) {
         if (currentVideoUrl) {
           videoRef.current.play().catch(() => {
             if (videoRef.current) {
@@ -157,7 +219,7 @@ export default function VideoDetail() {
         videoRef.current.pause();
       }
     }
-  }, [isWindowFocused, currentVideoUrl]);
+  }, [isWindowFocused, currentVideoUrl, showAd]);
 
   const handleTimeUpdate = () => {
     const videoElem = videoRef.current;
@@ -474,6 +536,98 @@ export default function VideoDetail() {
         <div className="sticky top-0 z-40 bg-black pb-2 md:pb-4 transform-gpu border-b border-zinc-800 md:border-none pt-[env(safe-area-inset-top)]">
           {/* Video Player */}
           <div className="w-full aspect-video bg-black md:rounded-2xl overflow-hidden relative group shadow-lg">
+            {showAd && user?.type !== 'entreprise' && (
+              <div className="absolute inset-0 bg-black z-20 flex flex-col items-center justify-center overflow-hidden">
+                {/* Ad Video Player */}
+                <video
+                  ref={adVideoRef}
+                  src={adVideoUrl}
+                  autoPlay
+                  playsInline
+                  muted={isAdMuted}
+                  onTimeUpdate={handleAdTimeUpdate}
+                  onLoadedMetadata={handleAdLoadedMetadata}
+                  onEnded={handleAdEnded}
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Ad Controls Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 flex flex-col justify-between p-4 pointer-events-none z-30">
+                  {/* Top Bar */}
+                  <div className="flex justify-between items-center w-full pointer-events-auto">
+                    <span className="bg-purple-600/90 text-white text-xs uppercase tracking-wider font-semibold py-1 px-3 rounded-full flex items-center gap-1.5 shadow-md">
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Sponsorisé par HilltopAds
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsAdMuted(!isAdMuted);
+                        }}
+                        className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                      >
+                        {isAdMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseAd();
+                        }}
+                        className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                        title="Passer la publicité"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Middle Area for redirect trigger */}
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
+                    onClick={handleAdClick}
+                  >
+                    <div className="bg-black/75 border border-zinc-850 rounded-2xl p-5 text-center backdrop-blur-md max-w-sm hover:scale-105 transition-transform duration-300 shadow-2xl pointer-events-none">
+                      <div className="w-10 h-10 bg-purple-600/30 rounded-full flex items-center justify-center text-purple-400 mx-auto mb-3">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <h4 className="text-white font-semibold text-sm mb-1 flex items-center justify-center gap-1.5">
+                        Découvrir l'offre <ExternalLink className="w-4 h-4 text-purple-400" />
+                      </h4>
+                      <p className="text-zinc-400 text-xs">Visitez notre sponsor pour continuer votre lecture gratuite</p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Bar with Countdown & Progress */}
+                  <div className="w-full flex flex-col gap-2 pointer-events-auto mt-auto">
+                    {/* Progress Bar */}
+                    <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-purple-500 h-full transition-all duration-200"
+                        style={{ width: `${adProgress}%` }}
+                      />
+                    </div>
+
+                    {/* Bottom Actions */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-300 font-medium bg-black/40 px-3 py-1 rounded backdrop-blur-sm">
+                        La publicité se termine dans {Math.ceil(Math.max(0, adDuration - adCurrentTime))}s
+                      </span>
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseAd();
+                        }}
+                        className="bg-purple-600 hover:bg-purple-700 text-white py-1.5 px-4 rounded-lg text-xs font-semibold transition-all shadow-lg active:scale-95"
+                      >
+                        Passer la publicité
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {currentVideoUrl ? (
               <video 
                 ref={videoRef}
@@ -481,9 +635,10 @@ export default function VideoDetail() {
                 controls 
                 autoPlay 
                 playsInline
-                loop
+                loop={user?.type === 'entreprise'}
                 preload="auto"
                 onTimeUpdate={handleTimeUpdate}
+                onEnded={handleVideoEnded}
                 className="w-full h-full object-contain"
                 controlsList="nodownload"
               />

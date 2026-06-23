@@ -1,4 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#a855f7"/>
-  <text x="50%" y="54%" font-family="Outfit, Inter, system-ui, -apple-system, sans-serif" font-weight="900" font-size="140" fill="#ffffff" text-anchor="middle" dominant-baseline="central" letter-spacing="-4">Vionify</text>
+  <defs>
+    <clipPath id="v-clip">
+      <polygon points="135,120 377,120 293,390 219,390" />
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" fill="#a855f7" />
+  
+  <!-- Clipped white elements and purple gaps -->
+  <g clip-path="url(#v-clip)">
+    <!-- Top Left Wing -->
+    <polygon points="135,120 205,120 242,240 172,240" fill="#ffffff" />
+    
+    <!-- Top Right Wing -->
+    <polygon points="377,120 307,120 270,240 340,240" fill="#ffffff" />
+    
+    <!-- Bottom Base -->
+    <polygon points="190,305 256,342 322,305 293,390 219,390" fill="#ffffff" />
+    
+    <!-- White Concentric Arcs -->
+    <circle cx="256" cy="50" r="185" fill="none" stroke="#ffffff" stroke-width="18" />
+    <circle cx="256" cy="50" r="218" fill="none" stroke="#ffffff" stroke-width="18" />
+    <circle cx="256" cy="50" r="251" fill="none" stroke="#ffffff" stroke-width="18" />
+    
+    <!-- Purple Concentric Gap Cuts -->
+    <circle cx="256" cy="50" r="168.5" fill="none" stroke="#a855f7" stroke-width="15" />
+    <circle cx="256" cy="50" r="201.5" fill="none" stroke="#a855f7" stroke-width="15" />
+    <circle cx="256" cy="50" r="234.5" fill="none" stroke="#a855f7" stroke-width="15" />
+    <circle cx="256" cy="50" r="267.5" fill="none" stroke="#a855f7" stroke-width="15" />
+  </g>
 </svg>

@@ -965,35 +965,144 @@ export const db = {
   },
 
   searchVideos: async (query: string, userId?: string) => {
-    const { data, error } = await safeRequest(supabase
-      .from('videos')
-      .select('*, products(*)')
-      .or(`title.ilike.%${query}%,description.ilike.%${query}%,category.ilike.%${query}%`)
-      .order('created_at', { ascending: false }));
+    const searchTerm = (query || '').trim();
+    if (!searchTerm) return [];
 
-    if (error) {
-      console.error('Supabase SearchVideos Error:', error);
-      throw error;
-    }
-    
-    let likedVideoIds = new Set<string>();
-    if (userId) {
-      const { data: userLikes } = await safeRequest(supabase
-        .from('likes')
-        .select('video_id')
-        .eq('user_id', userId));
-      likedVideoIds = new Set((userLikes as any[] || [])?.map((l: any) => l.video_id) || []);
-    }
+    const lowerTerm = searchTerm.toLowerCase();
 
-    const activeVideos = (data as any[] || []).filter(v => isActiveEntreprise(v.entreprise));
-    
-    return activeVideos.map(v => {
-      const mapped = mapVideo(v);
-      if (userId && likedVideoIds.has(mapped.id)) {
-        mapped.likedBy = [userId];
+    try {
+      // Helper function to safely execute custom queries with optional relation fallbacks
+      const executeSafeQuery = async (
+        builder1: () => any, // Primary builder with products(*)
+        builder2: () => any  // Fallback builder without products(*)
+      ) => {
+        try {
+          const { data, error } = await builder1();
+          if (!error && data) return data;
+          console.warn('Primary search query failed, trying without relations...', error);
+        } catch (e) {
+          console.warn('Primary search query threw error, trying fallback:', e);
+        }
+        
+        try {
+          const { data, error } = await builder2();
+          if (!error && data) return data;
+        } catch (e) {
+          console.error('Fallback search query threw error:', e);
+        }
+        return [];
+      };
+
+      // Define our builders so we can run them or fall back easily
+      const broadOrWithProducts = () => supabase
+        .from('videos')
+        .select('*, products(*)')
+        .or(`title.ilike.%${searchTerm}%,entreprise_name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      const broadOrWithoutProducts = () => supabase
+        .from('videos')
+        .select('*')
+        .or(`title.ilike.%${searchTerm}%,entreprise_name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      const titleWithProducts = () => supabase
+        .from('videos')
+        .select('*, products(*)')
+        .ilike('title', `%${searchTerm}%`)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      const titleWithoutProducts = () => supabase
+        .from('videos')
+        .select('*')
+        .ilike('title', `%${searchTerm}%`)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      const recentWithProducts = () => supabase
+        .from('videos')
+        .select('*, products(*)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      const recentWithoutProducts = () => supabase
+        .from('videos')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      // Execute all 3 search strategies in parallel safely
+      const [orResults, titleResults, recentResults] = await Promise.all([
+        executeSafeQuery(broadOrWithProducts, broadOrWithoutProducts),
+        executeSafeQuery(titleWithProducts, titleWithoutProducts),
+        executeSafeQuery(recentWithProducts, recentWithoutProducts)
+      ]);
+
+      // Combine and filter results
+      let allVideos: any[] = [];
+      if (orResults && orResults.length > 0) {
+        allVideos = [...orResults];
       }
-      return mapped;
-    });
+      if (titleResults && titleResults.length > 0) {
+        allVideos = [...allVideos, ...titleResults];
+      }
+
+      // If we got nothing from DB queries, filter the recent videos locally as the ultimate safety net
+      if (allVideos.length === 0 && recentResults && recentResults.length > 0) {
+        const filteredRecent = recentResults.filter((v: any) => 
+          (v.title || '').toLowerCase().includes(lowerTerm) ||
+          (v.entreprise_name || '').toLowerCase().includes(lowerTerm) ||
+          (v.category || '').toLowerCase().includes(lowerTerm) ||
+          (v.description || '').toLowerCase().includes(lowerTerm)
+        );
+        allVideos = filteredRecent;
+      }
+
+      // De-duplicate results by ID
+      const uniqueVideos = Array.from(new Map(allVideos.map(v => [v.id, v])).values());
+
+      if (uniqueVideos.length === 0) return [];
+
+      // Priority Tuning: Prefix matches first
+      uniqueVideos.sort((a: any, b: any) => {
+        const aTitle = (a.title || '').toLowerCase();
+        const bTitle = (b.title || '').toLowerCase();
+        const aEnt = (a.entreprise_name || '').toLowerCase();
+        const bEnt = (b.entreprise_name || '').toLowerCase();
+        
+        const aStarts = aTitle.startsWith(lowerTerm) || aEnt.startsWith(lowerTerm);
+        const bStarts = bTitle.startsWith(lowerTerm) || bEnt.startsWith(lowerTerm);
+        
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        return 0; 
+      });
+
+      let likedVideoIds = new Set<string>();
+      if (userId) {
+        try {
+          const { data: likes } = await supabase.from('likes').select('video_id').eq('user_id', userId);
+          if (likes) likedVideoIds = new Set(likes.map((l: any) => l.video_id));
+        } catch (e) {
+          console.warn('Liked videos fetch error:', e);
+        }
+      }
+
+      return uniqueVideos.map((v: any) => {
+        const mapped = mapVideo(v);
+        if (userId && likedVideoIds.has(mapped.id)) {
+          mapped.likedBy = [userId];
+        }
+        return mapped;
+      });
+    } catch (err) {
+      console.error('Unified Search Execution Error:', err);
+      return [];
+    }
   },
 
   getVideosByEntreprise: async (entrepriseId: string, userId?: string) => {

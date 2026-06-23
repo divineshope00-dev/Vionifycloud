@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Home, PlusSquare, Library as LibraryIcon, Crown, User as UserIcon, Star, X, AlertCircle, ShoppingBag } from 'lucide-react';
+import { Home, PlusSquare, Library as LibraryIcon, Crown, User as UserIcon, Star, X, AlertCircle, ShoppingBag, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -133,6 +133,7 @@ export default function MainLayout() {
           { path: '/app/publish', icon: PlusSquare, label: t('nav.publish') },
         ]
       : [
+          { path: '/app/search', icon: Search, label: t('nav.search') },
           { path: '/app/club', icon: Star, label: t('nav.club') }
         ]
     ),

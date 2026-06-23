@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, Link, useNavigate } from 'react-router-dom';
-import { Lock, Play, MoreVertical, Trash2, Edit, ExternalLink, ThumbsUp, Search as SearchIcon, X, Loader2, ChevronLeft, ChevronRight, Upload, Image as ImageIcon, Plus, Volume2, VolumeX, ShoppingBag, AlertCircle, Crown } from 'lucide-react';
+import { Lock, Play, MoreVertical, Trash2, Edit, ExternalLink, ThumbsUp, Search as SearchIcon, X, Loader2, ChevronLeft, ChevronRight, Upload, Image as ImageIcon, Plus, Volume2, VolumeX, ShoppingBag, AlertCircle, Crown, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { db, User, Video, Product, getBunnyUrl, VideoQuality } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
@@ -26,12 +26,29 @@ const FeedVideo: React.FC<{
   preload?: "auto" | "metadata" | "none"
 }> = ({ video, isEntreprise, hasAccess, onClick, isPlaying = false, isMuted = true, onToggleMute, viewerId, quality = '720p', preload }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const adVideoRef = useRef<HTMLVideoElement>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [hasTracked, setHasTracked] = useState(false);
+  const [showAd, setShowAd] = useState(false);
+  const [adVideoUrl, setAdVideoUrl] = useState('');
+  const [adCurrentTime, setAdCurrentTime] = useState(0);
+  const [adDuration, setAdDuration] = useState(15);
+  const [isAdMuted, setIsAdMuted] = useState(isMuted);
+
+  const adProgress = adDuration > 0 ? (adCurrentTime / adDuration) * 100 : 0;
+
+  const VIDEO_ADS = [
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+  ];
+  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=1247e030e97da3f4aee3";
+
   let currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
   
-  // Add time fragment to force thumbnail rendering on mobile/Safari if not autoplaying
-  if (currentUrl && !currentUrl.includes('#t=') && !isPlaying) {
+  // Add time fragment to force thumbnail rendering on mobile/Safari and maintain identical URL to avoid black flashes upon playing
+  if (currentUrl && !currentUrl.includes('#t=')) {
     currentUrl += '#t=0.001';
   }
 
@@ -46,19 +63,18 @@ const FeedVideo: React.FC<{
           videoRef.current.removeEventListener('loadedmetadata', handleLoaded);
         }
       };
-      // We don't necessarily NEED to restore time for 2-second previews, 
-      // but if the video is playing longer, it's better.
-      // However, FeedVideo restarts on loop, so it's less critical.
     }
   }, [quality]);
 
   useEffect(() => {
-    // Reset tracker when video changes or starts/stops playing
+    // Reset tracker and ad overlay when video changes
     setHasTracked(false);
+    setShowAd(false);
   }, [video.id]);
+
   useEffect(() => {
     if (videoRef.current) {
-      if (isPlaying) {
+      if (isPlaying && !showAd) {
         const playPromise = videoRef.current.play();
         if (playPromise !== undefined) {
           playPromise.catch(() => {
@@ -69,7 +85,7 @@ const FeedVideo: React.FC<{
         videoRef.current.pause();
       }
     }
-  }, [isPlaying]);
+  }, [isPlaying, showAd]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -103,23 +119,158 @@ const FeedVideo: React.FC<{
     }
   };
 
+  const handleVideoEnded = () => {
+    if (!isEntreprise) {
+      const index = Math.floor(Math.random() * VIDEO_ADS.length);
+      setAdVideoUrl(VIDEO_ADS[index]);
+      setAdCurrentTime(0);
+      setAdDuration(15);
+      setShowAd(true);
+      try {
+        window.open(HILLTOP_ADS_LINK, '_blank');
+      } catch (e) {
+        console.warn("Popup blocked, showing ad overlay");
+      }
+    }
+  };
+
+  const handleAdTimeUpdate = () => {
+    if (adVideoRef.current) {
+      setAdCurrentTime(adVideoRef.current.currentTime);
+    }
+  };
+
+  const handleAdLoadedMetadata = () => {
+    if (adVideoRef.current) {
+      setAdDuration(adVideoRef.current.duration || 15);
+    }
+  };
+
+  const handleAdEnded = () => {
+    handleCloseAd();
+  };
+
+  const handleCloseAd = () => {
+    setShowAd(false);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleAdClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(HILLTOP_ADS_LINK, '_blank');
+  };
+
   return (
     <div 
       className="relative aspect-video bg-zinc-800 rounded-none md:rounded-xl overflow-hidden cursor-pointer group/video feed-video-container"
       data-video-id={video.id}
       onClick={onClick}
     >
+      {showAd && !isEntreprise && (
+        <div className="absolute inset-0 bg-black z-20 flex flex-col items-center justify-center overflow-hidden">
+          {/* Ad Video Player */}
+          <video
+            ref={adVideoRef}
+            src={adVideoUrl}
+            autoPlay
+            playsInline
+            muted={isAdMuted}
+            onTimeUpdate={handleAdTimeUpdate}
+            onLoadedMetadata={handleAdLoadedMetadata}
+            onEnded={handleAdEnded}
+            className="w-full h-full object-cover"
+          />
+
+          {/* Ad Controls Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 flex flex-col justify-between p-3 pointer-events-none z-30">
+            {/* Top Bar */}
+            <div className="flex justify-between items-center w-full pointer-events-auto">
+              <span className="bg-purple-600/90 text-white text-[10px] uppercase tracking-wider font-semibold py-0.5 px-2 rounded-full flex items-center gap-1 shadow-md">
+                <Sparkles className="w-3 h-3" /> Sponsorisé par HilltopAds
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAdMuted(!isAdMuted);
+                  }}
+                  className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
+                >
+                  {isAdMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCloseAd();
+                  }}
+                  className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
+                  title="Passer la publicité"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Middle Prompt / Playback Area */}
+            <div 
+              className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
+              onClick={handleAdClick}
+            >
+              {/* Overlay pulse prompt to discover */}
+              <div className="bg-black/75 border border-zinc-800 rounded-xl px-4 py-2 text-center backdrop-blur-sm max-w-[200px] hover:scale-105 transition-transform shadow-2xl pointer-events-none">
+                <p className="text-white text-xs font-semibold mb-0.5 flex items-center justify-center gap-1">
+                  Découvrir l'offre <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
+                </p>
+                <p className="text-zinc-400 text-[10px]">Cliquez pour voir l'annonce</p>
+              </div>
+            </div>
+
+            {/* Bottom Bar with Countdown & Progress */}
+            <div className="w-full flex flex-col gap-1.5 pointer-events-auto mt-auto">
+              {/* Progress Bar */}
+              <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                <div 
+                  className="bg-purple-500 h-full transition-all duration-200"
+                  style={{ width: `${adProgress}%` }}
+                />
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-zinc-300 font-medium bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
+                  La publicité se termine dans {Math.ceil(Math.max(0, adDuration - adCurrentTime))}s
+                </span>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCloseAd();
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white py-1 px-3 rounded text-[11px] font-medium transition-all shadow-md active:scale-95"
+                >
+                  Passer la publicité
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {currentUrl ? (
         <video 
           ref={videoRef}
           src={currentUrl} 
           className="w-full h-full object-cover"
           playsInline
-          loop
+          loop={isEntreprise}
           muted={isMuted}
           preload={preload || (isPlaying ? "auto" : "metadata")}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleVideoEnded}
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
@@ -809,16 +960,6 @@ export default function Home() {
           <h1 className="text-2xl font-bold">
             {isEntreprise ? t('home.title.entreprise') : t('home.title.particulier')}
           </h1>
-          {!isEntreprise && (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => navigate('/app/search')}
-                className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full transition-colors border border-zinc-800"
-              >
-                <SearchIcon className="w-5 h-5 text-zinc-400" />
-              </button>
-            </div>
-          )}
         </div>
 
         {!isEntreprise && (
