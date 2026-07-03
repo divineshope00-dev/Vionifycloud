@@ -1,8 +1,9 @@
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Star, Gift, Crown } from 'lucide-react';
+import { Star, Gift } from 'lucide-react';
 import { User } from '../services/supabaseService';
 import { motion } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
+import PremiumIcon from '../components/PremiumIcon';
 
 export default function Club() {
   const { user } = useOutletContext<{ user: User }>();
@@ -51,83 +52,23 @@ export default function Club() {
     { name: 'Grâce Beauty', logo: 'https://logo.clearbit.com/gracebeauty.com?size=256', link: 'https://sovrn.co/yvagnc4' },
   ];
 
-  // If trial is over and user is not a subscriber, show expired view
-  if (isTrialUser && !isWithinTrial) {
-    return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center bg-black relative overflow-hidden">
-        {/* Modern Ambient Background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-1/4 right-1/4 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
-
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-10 rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10"
-        >
-          <div className="w-24 h-24 bg-gradient-to-br from-red-500/20 to-red-600/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
-            <Star className="w-12 h-12 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-4 tracking-tight uppercase">{t('club.trial.expired.title')}</h1>
-          <p className="text-zinc-400 mb-10 leading-relaxed text-sm font-medium">
-            {t('club.trial.expired.desc')}
-          </p>
-          <button 
-            onClick={() => navigate('/app/premium')}
-            className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
-          >
-            <Crown className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            <span className="text-base">{t('club.access.button')}</span>
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
-
   // If user is not enterprise and doesn't have access (edge case if somehow trialEndDate is invalid)
   const hasAccess = isSubscriber || (user.type === 'particulier' && isWithinTrial);
-  if (!hasAccess && user.type === 'particulier') {
-    return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center bg-black relative overflow-hidden">
-        {/* Modern Ambient Background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
-
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-10 rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10"
-        >
-          <div className="w-24 h-24 bg-gradient-to-br from-purple-500/20 to-indigo-600/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
-            <Star className="w-12 h-12 text-purple-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-4 tracking-tight uppercase">{t('club.access.title')}</h1>
-          <p className="text-zinc-400 mb-10 leading-relaxed text-sm font-medium">
-            {t('club.access.desc')}
-          </p>
-          <button 
-            onClick={() => navigate('/app/premium')}
-            className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
-          >
-            <Crown className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            <span className="text-base">{t('club.access.button')}</span>
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  const showExpiryPrompt = (isTrialUser && !isWithinTrial) || (!hasAccess && user.type === 'particulier');
 
   return (
-    <div className="p-4 md:p-8 pt-[calc(env(safe-area-inset-top)+1rem)] md:pt-[calc(env(safe-area-inset-top)+2rem)] max-w-5xl mx-auto pb-32">
-      {isTrialUser && isWithinTrial && (
-        <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="mb-8 p-4 bg-purple-600/10 border border-purple-500/30 rounded-2xl flex items-center gap-3 text-purple-200 text-sm md:text-base font-medium"
-        >
-          <Gift className="w-5 h-5 text-purple-500" />
-          {t('club.trial.info')}
-        </motion.div>
-      )}
+    <div className="relative min-h-screen overflow-hidden">
+      <div className={`p-4 md:p-8 pt-[calc(env(safe-area-inset-top)+1rem)] md:pt-[calc(env(safe-area-inset-top)+2rem)] max-w-5xl mx-auto pb-32 transition-all duration-500 ${showExpiryPrompt ? 'filter blur-md select-none pointer-events-none opacity-45' : ''}`}>
+        {isTrialUser && isWithinTrial && (
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="mb-8 p-4 bg-purple-600/10 border border-purple-500/30 rounded-2xl flex items-center gap-3 text-purple-200 text-sm md:text-base font-medium"
+          >
+            <Gift className="w-5 h-5 text-purple-500" />
+            {t('club.trial.info')}
+          </motion.div>
+        )}
 
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
@@ -176,5 +117,40 @@ export default function Club() {
         </div>
       </motion.div>
     </div>
-  );
+
+    {showExpiryPrompt && (
+      <>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" />
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:bottom-8 md:w-full md:max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 z-50 shadow-2xl"
+        >
+          <div className="flex flex-col items-center text-center mt-2">
+            <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mb-4 border border-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
+              <Star className="w-8 h-8 text-purple-400" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2 tracking-tight uppercase">
+              {isTrialUser && !isWithinTrial ? t('club.trial.expired.title') : t('club.access.title')}
+            </h3>
+            
+            <p className="text-zinc-400 mb-6 text-sm leading-relaxed">
+              {isTrialUser && !isWithinTrial ? t('club.trial.expired.desc') : t('club.access.desc')}
+            </p>
+            
+            <button
+              onClick={() => navigate('/app/premium')}
+              className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-0.5 active:scale-95 group flex items-center justify-center gap-2"
+            >
+              <PremiumIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              <span>{t('club.access.button')}</span>
+            </button>
+          </div>
+        </motion.div>
+      </>
+    )}
+  </div>
+);
 }

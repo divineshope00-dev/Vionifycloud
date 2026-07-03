@@ -13,8 +13,14 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const user = db.getCurrentUser();
-    if (user && user.language) {
-      return user.language as Language;
+    if (user) {
+      if (user.isGuest) {
+        const saved = localStorage.getItem('vionify_lang');
+        return (saved === 'fr' || saved === 'en') ? saved as Language : 'en';
+      }
+      if (user.language) {
+        return user.language as Language;
+      }
     }
     const saved = localStorage.getItem('vionify_lang');
     return (saved === 'fr' || saved === 'en') ? saved : 'fr';
@@ -24,13 +30,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleUserChange = () => {
       const user = db.getCurrentUser();
-      if (user && user.language) {
-        setLanguageState(user.language as Language);
-      } else {
-        // Fallback to global setting when logged out or user has no language preference
-        const saved = localStorage.getItem('vionify_lang');
-        setLanguageState((saved === 'fr' || saved === 'en') ? saved as Language : 'fr');
+      if (user) {
+        if (user.isGuest) {
+          const saved = localStorage.getItem('vionify_lang');
+          setLanguageState((saved === 'fr' || saved === 'en') ? saved as Language : 'en');
+          return;
+        }
+        if (user.language) {
+          setLanguageState(user.language as Language);
+          return;
+        }
       }
+      // Fallback to global setting when logged out or user has no language preference
+      const saved = localStorage.getItem('vionify_lang');
+      setLanguageState((saved === 'fr' || saved === 'en') ? saved as Language : 'fr');
     };
 
     // We need a way to know when the user logs in/out. 

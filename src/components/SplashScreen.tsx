@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import VLogo from './VLogo';
 
 export default function SplashScreen() {
   return (
@@ -25,6 +26,7 @@ export default function SplashScreen() {
           transition={{ duration: 1, ease: "easeOut" }}
           className="flex flex-col items-center"
         >
+          <VLogo className="w-20 h-20 text-purple-500 mb-6 drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]" />
           <h1 className="text-6xl md:text-8xl font-display font-extrabold tracking-tighter text-purple-500 drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]">
             Vionify
           </h1>

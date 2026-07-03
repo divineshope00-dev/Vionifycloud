@@ -5,6 +5,7 @@ export type UserType = 'entreprise' | 'particulier';
 export interface User {
   id: string;
   type: UserType;
+  isGuest?: boolean;
   email: string;
   name: string;
   country: string;
@@ -61,6 +62,7 @@ export interface Video {
   views?: number;
   clicks?: number;
   entrepriseMonthlyClients?: number;
+  entrepriseCountry?: string;
   addedAt?: string;
 }
 
@@ -127,6 +129,47 @@ const isActiveEntreprise = (data: any): boolean => {
   }
 
   return trialActive || subActive;
+};
+
+// Robust helper to load products separately for a list of videos if relational query fails
+const attachProductsToVideos = async (videos: any[]): Promise<any[]> => {
+  if (!videos || videos.length === 0) return [];
+  
+  const videoIds = videos.filter(v => v && v.id).map(v => v.id);
+  if (videoIds.length === 0) return videos;
+
+  try {
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('*')
+      .in('video_id', videoIds);
+
+    if (error) {
+      console.warn('Error fetching products separately:', error);
+      return videos.map(v => ({ ...v, products: v.products || [] }));
+    }
+
+    const productsByVideoId: Record<string, any[]> = {};
+    if (products && products.length > 0) {
+      // Group products by video_id
+      products.forEach(p => {
+        if (!productsByVideoId[p.video_id]) {
+          productsByVideoId[p.video_id] = [];
+        }
+        productsByVideoId[p.video_id].push(p);
+      });
+    }
+
+    // Attach to videos
+    return videos.map(v => ({
+      ...v,
+      products: productsByVideoId[v.id] || []
+    }));
+  } catch (err) {
+    console.error('Failed in attachProductsToVideos:', err);
+  }
+
+  return videos.map(v => ({ ...v, products: v.products || [] }));
 };
 
 // Safe request wrapper for network resilience and auth errors
@@ -224,6 +267,7 @@ const mapVideo = (data: any): Video => {
     entrepriseName: data.entreprise_name,
     entreprisePic: data.entreprise_pic,
     entrepriseMonthlyClients: entrepriseData?.peak_monthly_clients || data.entreprise_peak_monthly_clients || 0,
+    entrepriseCountry: entrepriseData?.country || data.entreprise_country || '',
     videoUrl: finalUrl || rawUrl,
     rawVideoUrl: rawUrl,
     title: data.title,
@@ -369,7 +413,7 @@ export const db = {
         type: user.type,
         country: user.country || '',
         profile_pic: user.profilePic || '',
-        language: user.language || 'fr',
+        language: user.language || (user.type === 'entreprise' ? 'en' : 'fr'),
         trial_start_date: now.toISOString(),
         trial_ends_at: trialEnds.toISOString(),
         subscription_status: 'trialing'
@@ -565,11 +609,11 @@ export const db = {
     if (!currentUser) return null;
 
     const dbUpdates: any = {};
-    if (updates.name) dbUpdates.name = updates.name;
-    if (updates.country) dbUpdates.country = updates.country;
-    if (updates.profilePic) dbUpdates.profile_pic = updates.profilePic;
-    if (updates.language) dbUpdates.language = updates.language;
-    if (updates.subscriptionStatus) dbUpdates.subscription_status = updates.subscriptionStatus;
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.country !== undefined) dbUpdates.country = updates.country;
+    if (updates.profilePic !== undefined) dbUpdates.profile_pic = updates.profilePic;
+    if (updates.language !== undefined) dbUpdates.language = updates.language;
+    if (updates.subscriptionStatus !== undefined) dbUpdates.subscription_status = updates.subscriptionStatus;
     if (updates.onboardingCompleted !== undefined) dbUpdates.onboarding_completed = updates.onboardingCompleted;
     if (updates.subscription) {
       dbUpdates.subscription_plan = updates.subscription.plan;
@@ -581,7 +625,7 @@ export const db = {
       }
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('users')
       .update(dbUpdates)
       .eq('id', currentUser.id)
@@ -589,8 +633,38 @@ export const db = {
       .maybeSingle();
 
     if (error || !data) {
-      console.error('Supabase UpdateUser Error:', error || 'User not found after update');
-      throw error || new Error('User not found after update');
+      console.warn('Update failed or user not found, trying upsert to create/sync profile:', error || 'no row updated');
+      
+      const fullRecord = {
+        id: currentUser.id,
+        email: currentUser.email || `${currentUser.id}@vionify.com`,
+        name: currentUser.name || 'Utilisateur Vionify',
+        type: currentUser.type || 'particulier',
+        country: currentUser.country || '',
+        profile_pic: currentUser.profilePic || '',
+        language: currentUser.language || 'fr',
+        trial_start_date: currentUser.trialStartDate || new Date().toISOString(),
+        trial_ends_at: currentUser.trialEndsAt || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        subscription_status: currentUser.subscriptionStatus || 'trialing',
+        ...dbUpdates
+      };
+
+      const upsertResult = await supabase
+        .from('users')
+        .upsert(fullRecord)
+        .select()
+        .maybeSingle();
+
+      if (upsertResult.error) {
+        console.error('Supabase Upsert/UpdateUser Error:', upsertResult.error);
+        throw upsertResult.error;
+      }
+      
+      data = upsertResult.data;
+    }
+
+    if (!data) {
+      throw new Error('User not found and failed to create/update via upsert');
     }
     
     const updatedUser = mapUser(data);
@@ -666,10 +740,10 @@ export const db = {
       }
     }
 
-    // Fetch the full video with products to return
+    // Fetch the full video and separately attach products to avoid relation errors
     const { data: fullVideo, error: fetchError } = await supabase
       .from('videos')
-      .select('*, products(*)')
+      .select('*')
       .eq('id', videoData.id)
       .maybeSingle();
 
@@ -678,7 +752,8 @@ export const db = {
       return mapVideo(videoData); // Fallback to partial data
     }
 
-    return mapVideo(fullVideo);
+    const videosWithProducts = await attachProductsToVideos([fullVideo]);
+    return mapVideo(videosWithProducts[0]);
   },
 
   trackMonthlyClient: async (businessId: string, viewerId: string) => {
@@ -810,60 +885,44 @@ export const db = {
   getVideos: async (limit?: number) => {
     let query = supabase
       .from('videos')
-      .select('*, products(*)')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (limit) {
       query = query.limit(limit);
     }
 
-    let { data, error } = await safeRequest(query);
-
+    const { data: rawVideos, error } = await safeRequest(query);
     if (error) {
-      console.error('Supabase GetVideos Error with relation, trying without relation:', error);
-      // Fallback
-      const fallbackQuery = supabase.from('videos').select('*').order('created_at', { ascending: false });
-      if (limit) fallbackQuery.limit(limit);
-      const fallbackResult = await safeRequest(fallbackQuery);
-      if (fallbackResult.error) throw fallbackResult.error;
-      data = fallbackResult.data;
+      console.error('Supabase GetVideos Error:', error);
+      throw error;
     }
+
+    const data = await attachProductsToVideos(rawVideos || []);
     
     console.log('GetVideos raw data:', data);
-    const activeVideos = (data as any[] || []).filter(v => {
-      const isActive = isActiveEntreprise(v?.entreprise || v?.users);
-      console.log('Video', v.id, 'entreprise:', v?.entreprise || v?.users, 'isActive:', isActive);
-      return isActive;
-    });
-    return activeVideos.map(mapVideo);
+    return (data as any[] || []).map(mapVideo);
   },
 
   getVideo: async (id: string, userId?: string) => {
-    let { data: videoData, error } = await supabase
+    const { data: rawVideo, error } = await supabase
       .from('videos')
-      .select('*, products(*)')
+      .select('*')
       .eq('id', id)
       .maybeSingle();
 
     if (error) {
-      console.warn('Error fetching single video with relation, trying without:', error);
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-      
-      if (fallbackError) {
-        console.error('Error fetching single video fallback:', fallbackError);
-        throw fallbackError;
-      }
-      videoData = fallbackData;
+      console.error('Error fetching single video:', error);
+      throw error;
     }
     
-    if (!videoData) {
+    if (!rawVideo) {
       console.warn(`No video found with ID: ${id}`);
       return null;
     }
+
+    const withProducts = await attachProductsToVideos([rawVideo]);
+    const videoData = withProducts[0] || rawVideo;
 
     const mapped = mapVideo(videoData);
     
@@ -887,11 +946,12 @@ export const db = {
       // 1. Fetch user preferences
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('preferred_categories')
+        .select('preferred_categories, country')
         .eq('id', userId)
         .maybeSingle();
       
       const preferences: Record<string, number> = userData?.preferred_categories || {};
+      const userCountry = userData?.country;
 
       // 2. Fetch all videos
       const videos = await db.getVideos();
@@ -914,6 +974,11 @@ export const db = {
         // Preference score: weight by interaction count
         if (video.category && preferences[video.category]) {
           score += preferences[video.category] * 10;
+        }
+
+        // Country priority score
+        if (userCountry && video.entrepriseCountry && video.entrepriseCountry === userCountry) {
+          score += 100;
         }
 
         // Trending score: 500 views in 7 days + 100 clicks
@@ -971,88 +1036,45 @@ export const db = {
     const lowerTerm = searchTerm.toLowerCase();
 
     try {
-      // Helper function to safely execute custom queries with optional relation fallbacks
-      const executeSafeQuery = async (
-        builder1: () => any, // Primary builder with products(*)
-        builder2: () => any  // Fallback builder without products(*)
-      ) => {
-        try {
-          const { data, error } = await builder1();
-          if (!error && data) return data;
-          console.warn('Primary search query failed, trying without relations...', error);
-        } catch (e) {
-          console.warn('Primary search query threw error, trying fallback:', e);
-        }
-        
-        try {
-          const { data, error } = await builder2();
-          if (!error && data) return data;
-        } catch (e) {
-          console.error('Fallback search query threw error:', e);
-        }
-        return [];
-      };
-
-      // Define our builders so we can run them or fall back easily
-      const broadOrWithProducts = () => supabase
-        .from('videos')
-        .select('*, products(*)')
-        .or(`title.ilike.%${searchTerm}%,entreprise_name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      const broadOrWithoutProducts = () => supabase
+      // Direct, fast flat queries:
+      const broadOrQuery = supabase
         .from('videos')
         .select('*')
         .or(`title.ilike.%${searchTerm}%,entreprise_name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
         .order('created_at', { ascending: false })
         .limit(100);
 
-      const titleWithProducts = () => supabase
-        .from('videos')
-        .select('*, products(*)')
-        .ilike('title', `%${searchTerm}%`)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      const titleWithoutProducts = () => supabase
+      const titleQuery = supabase
         .from('videos')
         .select('*')
         .ilike('title', `%${searchTerm}%`)
         .order('created_at', { ascending: false })
         .limit(100);
 
-      const recentWithProducts = () => supabase
-        .from('videos')
-        .select('*, products(*)')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      const recentWithoutProducts = () => supabase
+      const recentQuery = supabase
         .from('videos')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(200);
 
-      // Execute all 3 search strategies in parallel safely
-      const [orResults, titleResults, recentResults] = await Promise.all([
-        executeSafeQuery(broadOrWithProducts, broadOrWithoutProducts),
-        executeSafeQuery(titleWithProducts, titleWithoutProducts),
-        executeSafeQuery(recentWithProducts, recentWithoutProducts)
+      const [orResult, titleResult, recentResult] = await Promise.all([
+        safeRequest(broadOrQuery),
+        safeRequest(titleQuery),
+        safeRequest(recentQuery)
       ]);
 
       // Combine and filter results
       let allVideos: any[] = [];
-      if (orResults && orResults.length > 0) {
-        allVideos = [...orResults];
+      if (orResult.data && orResult.data.length > 0) {
+        allVideos = [...orResult.data];
       }
-      if (titleResults && titleResults.length > 0) {
-        allVideos = [...allVideos, ...titleResults];
+      if (titleResult.data && titleResult.data.length > 0) {
+        allVideos = [...allVideos, ...titleResult.data];
       }
 
       // If we got nothing from DB queries, filter the recent videos locally as the ultimate safety net
-      if (allVideos.length === 0 && recentResults && recentResults.length > 0) {
-        const filteredRecent = recentResults.filter((v: any) => 
+      if (allVideos.length === 0 && recentResult.data && recentResult.data.length > 0) {
+        const filteredRecent = recentResult.data.filter((v: any) => 
           (v.title || '').toLowerCase().includes(lowerTerm) ||
           (v.entreprise_name || '').toLowerCase().includes(lowerTerm) ||
           (v.category || '').toLowerCase().includes(lowerTerm) ||
@@ -1064,10 +1086,13 @@ export const db = {
       // De-duplicate results by ID
       const uniqueVideos = Array.from(new Map(allVideos.map(v => [v.id, v])).values());
 
-      if (uniqueVideos.length === 0) return [];
+      // Attach products to the consolidated list of videos
+      const uniqueVideosWithProducts = await attachProductsToVideos(uniqueVideos);
+
+      if (uniqueVideosWithProducts.length === 0) return [];
 
       // Priority Tuning: Prefix matches first
-      uniqueVideos.sort((a: any, b: any) => {
+      uniqueVideosWithProducts.sort((a: any, b: any) => {
         const aTitle = (a.title || '').toLowerCase();
         const bTitle = (b.title || '').toLowerCase();
         const aEnt = (a.entreprise_name || '').toLowerCase();
@@ -1092,7 +1117,7 @@ export const db = {
         }
       }
 
-      return uniqueVideos.map((v: any) => {
+      return uniqueVideosWithProducts.map((v: any) => {
         const mapped = mapVideo(v);
         if (userId && likedVideoIds.has(mapped.id)) {
           mapped.likedBy = [userId];
@@ -1106,22 +1131,19 @@ export const db = {
   },
 
   getVideosByEntreprise: async (entrepriseId: string, userId?: string) => {
-    let { data, error } = await safeRequest(supabase
+    const { data: rawVideos, error } = await safeRequest(supabase
       .from('videos')
-      .select('*, products(*)')
+      .select('*')
       .eq('entreprise_id', entrepriseId)
       .order('created_at', { ascending: false }));
 
     if (error) {
-      console.error('Supabase GetVideosByEntreprise Error with relation, trying without:', error);
-      const fallbackResult = await safeRequest(supabase
-        .from('videos')
-        .select('*')
-        .eq('entreprise_id', entrepriseId)
-        .order('created_at', { ascending: false }));
-      if (fallbackResult.error) throw fallbackResult.error;
-      data = fallbackResult.data;
+      console.error('Supabase GetVideosByEntreprise Error:', error);
+      throw error;
     }
+    
+    // Fetch products separately to ensure they are loaded
+    const data = await attachProductsToVideos(rawVideos || []);
     
     let likedVideoIds = new Set<string>();
     if (userId) {
@@ -1133,13 +1155,8 @@ export const db = {
     }
 
     console.log('GetVideosByEntreprise raw data:', data);
-    const visibleVideos = (data as any[] || []).filter(v => {
-      const isActive = userId === entrepriseId || isActiveEntreprise(v?.entreprise || v?.users);
-      console.log('Video', v.id, 'entreprise:', v?.entreprise || v?.users, 'isActive:', isActive);
-      return isActive;
-    });
-
-    return visibleVideos.map(v => {
+    
+    return (data as any[] || []).map(v => {
       const mapped = mapVideo(v);
       if (userId && likedVideoIds.has(mapped.id)) {
         mapped.likedBy = [userId];
@@ -1235,10 +1252,10 @@ export const db = {
       }
     }
 
-    // 3. Fetch the fully updated video object with joined products
+    // 3. Fetch the fully updated video object and attach products separately
     const { data: finalData, error: fetchError } = await supabase
       .from('videos')
-      .select('*, products(*)')
+      .select('*')
       .eq('id', id)
       .maybeSingle();
 
@@ -1247,7 +1264,8 @@ export const db = {
       throw fetchError || new Error('Failed to fetch video after update');
     }
 
-    return mapVideo(finalData);
+    const videosWithProducts = await attachProductsToVideos([finalData]);
+    return mapVideo(videosWithProducts[0]);
   },
 
   incrementVideoViews: async (videoId: string) => {
@@ -1393,25 +1411,25 @@ export const db = {
         return dateB - dateA;
       });
 
-      // 2. Fetch videos with their products
+      // 2. Fetch videos with their products flat and attach separately
       const videoIds = sortedLinks.map(l => l.video_id).filter(Boolean);
       if (videoIds.length === 0) return [];
 
       const { data: videosData, error: videoError } = await safeRequest(
         supabase
           .from('videos')
-          .select('*, products(*)')
+          .select('*')
           .in('id', videoIds)
       );
 
-      const videosMap: Record<string, any> = {};
       if (videoError) {
-        console.error('Error fetching favorites videos with products, trying fallback:', videoError);
-        const { data: fallbackVideos } = await safeRequest(supabase.from('videos').select('*').in('id', videoIds));
-        fallbackVideos?.forEach(v => { videosMap[v.id] = v; });
-      } else {
-        videosData?.forEach(v => { videosMap[v.id] = v; });
+        console.error('Error fetching favorites videos:', videoError);
+        throw videoError;
       }
+
+      const withProducts = await attachProductsToVideos(videosData || []);
+      const videosMap: Record<string, any> = {};
+      withProducts?.forEach(v => { videosMap[v.id] = v; });
 
       return sortedLinks
         .map(f => {
@@ -1563,21 +1581,23 @@ export const db = {
       .from('videos')
       .update({ likes: newLikes })
       .eq('id', videoId)
-      .select('*, products(*)')
+      .select('*')
       .maybeSingle();
 
     if (updateError || !updatedVideo) {
       console.error('Supabase toggleLike update error:', updateError);
       // Let's at least get the full video so we don't return an empty husk
-      const { data: fullVideo } = await supabase.from('videos').select('*, products(*)').eq('id', videoId).maybeSingle();
+      const { data: fullVideo } = await supabase.from('videos').select('*').eq('id', videoId).maybeSingle();
       if (!fullVideo) return null;
       fullVideo.likes = newLikes;
-      const mapped = mapVideo(fullVideo);
+      const withProducts = await attachProductsToVideos([fullVideo]);
+      const mapped = mapVideo(withProducts[0] || fullVideo);
       mapped.likedBy = existing ? [] : [userId];
       return mapped;
     }
     
-    const mapped = mapVideo(updatedVideo);
+    const withProducts = await attachProductsToVideos([updatedVideo]);
+    const mapped = mapVideo(withProducts[0] || updatedVideo);
     mapped.likedBy = existing ? [] : [userId];
     return mapped;
   },
@@ -1623,15 +1643,42 @@ export const db = {
           .lt('created_at', thirtyDaysAgo.toISOString());
       } catch (e) { /* silent fail */ }
 
-      const { data, error } = await safeRequest(
+      let { data, error } = await safeRequest(
         supabase
           .from('product_favorites')
           .select('product_id, created_at, products(*)')
           .eq('user_id', userId)
       );
 
-      if (error) {
-        console.error('Error fetching product favorites:', error);
+      if (error || !data) {
+        console.warn('Error fetching product favorites with relation, trying separate fetch:', error);
+        const { data: rawFavs, error: favError } = await safeRequest(
+          supabase
+            .from('product_favorites')
+            .select('product_id, created_at')
+            .eq('user_id', userId)
+        );
+        if (favError || !rawFavs || rawFavs.length === 0) {
+          return [];
+        }
+        const productIds = rawFavs.map(f => f.product_id).filter(Boolean);
+        if (productIds.length > 0) {
+          const { data: productsData, error: productsError } = await safeRequest(
+            supabase.from('products').select('*').in('id', productIds)
+          );
+          if (!productsError && productsData) {
+            const productsMap = new Map(productsData.map(p => [p.id, p]));
+            return rawFavs
+              .filter(f => productsMap.has(f.product_id))
+              .map(f => {
+                const p = mapProduct(productsMap.get(f.product_id));
+                return {
+                  ...p,
+                  added_at: f.created_at
+                };
+              });
+          }
+        }
         return [];
       }
       
@@ -1651,23 +1698,62 @@ export const db = {
   },
 
   getAllProducts: async () => {
-    const { data, error } = await safeRequest(
+    let { data, error } = await safeRequest(
       supabase
         .from('products')
         .select('*, videos(id, category, entreprise_id, entreprise_name)')
     );
 
-    if (error) {
-      console.error('Supabase GetAllProducts Error:', error);
-      return [];
+    if (error || !data) {
+      console.warn('Supabase GetAllProducts with relation failed, trying separate fetch:', error);
+      
+      const { data: productsData, error: productsError } = await safeRequest(
+        supabase.from('products').select('*')
+      );
+      
+      if (productsError || !productsData) {
+        console.error('Supabase fallback GetAllProducts Error:', productsError);
+        return [];
+      }
+      
+      const videoIds = Array.from(new Set(productsData.map((p: any) => p.video_id).filter(Boolean)));
+      
+      let videosMap = new Map<string, any>();
+      if (videoIds.length > 0) {
+        const { data: videosData, error: videosError } = await safeRequest(
+          supabase
+            .from('videos')
+            .select('id, category, entreprise_id, entreprise_name')
+            .in('id', videoIds)
+        );
+        if (!videosError && videosData) {
+          videosMap = new Map(videosData.map((v: any) => [v.id, v]));
+        }
+      }
+      
+      return productsData.map((p: any) => {
+        const mapped = mapProduct(p);
+        const matchedVideo = videosMap.get(p.video_id);
+        let category = 'Autre';
+        if (matchedVideo) {
+          category = matchedVideo.category;
+        } else if (p.category) {
+          category = p.category;
+        }
+        
+        return {
+          ...mapped,
+          videoId: p.video_id,
+          category: category
+        };
+      });
     }
 
     return (data || []).map((p: any) => {
       const mapped = mapProduct(p);
-      // Use fallback for category if video is missing
       let category = 'Autre';
       if (p.videos) {
-        category = p.videos.category;
+        category = Array.isArray(p.videos) ? p.videos[0]?.category : p.videos.category;
       } else if (p.category) { // Fallback if product itself has a category
         category = p.category;
       }

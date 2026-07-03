@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Check, Crown, AlertTriangle, Loader2, Star, Zap, Gift, Shield, Radio } from 'lucide-react';
+import { Check, AlertTriangle, Loader2, Star, Zap, Gift, Shield, Radio } from 'lucide-react';
 import { db, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { motion } from 'motion/react';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { isTrialExpired as checkTrialExpired } from '../utils/subscription';
+import PremiumIcon from '../components/PremiumIcon';
 
 export default function Premium() {
   const { user } = useOutletContext<{ user: User }>();
@@ -144,21 +145,21 @@ export default function Premium() {
     { 
       id: 'starter', 
       name: t('premium.plan.starter'), 
-      monthly: 15.00, 
+      monthly: 19.99, 
       features: [`5 ${t('premium.feat.videosPerMonth')}`, t('premium.feat.stats'), t('premium.feat.support')] 
     },
     { 
       id: 'pro', 
       name: t('premium.plan.pro'), 
-      monthly: 19.99, 
+      monthly: 39.00, 
       features: [`10 ${t('premium.feat.videosPerMonth')}`, t('premium.feat.stats'), t('premium.feat.support')] 
     },
     { 
       id: 'unlimited', 
       name: t('premium.plan.unlimited'), 
-      monthly: 30.99, 
+      monthly: 59.00, 
       features: [
-        isAnnual ? `40 ${t('premium.feat.videosPerMonth')}` : `30 ${t('premium.feat.videosPerMonth')}`, 
+        isAnnual ? `15 ${t('premium.feat.videosPerMonth')}` : `15 ${t('premium.feat.videosPerMonth')}`, 
         t('premium.feat.stats'), 
         t('premium.feat.support')
       ] 
@@ -203,7 +204,7 @@ export default function Premium() {
       )}
 
       <div className="text-center mb-12">
-        <Crown className="w-16 h-16 text-purple-500 mx-auto mb-4" />
+        <PremiumIcon className="w-16 h-16 mx-auto mb-4" />
         <h1 className="text-3xl md:text-5xl font-bold mb-4">{t('premium.title')}</h1>
         <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
           {t('premium.subtitle')}{isEntreprise ? ` ${t('premium.trial.entreprise')}` : ''}
@@ -314,7 +315,7 @@ export default function Premium() {
             <div className="bg-zinc-900 border border-purple-500 rounded-3xl p-8 flex flex-col shadow-2xl shadow-purple-900/20">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-purple-500/10 rounded-2xl">
-                  <Crown className="w-8 h-8 text-purple-500" />
+                  <PremiumIcon className="w-8 h-8" />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-white">{t('premium.founder.title')}</h3>

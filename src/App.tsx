@@ -34,7 +34,7 @@ import SubscriptionGuard from './components/SubscriptionGuard';
 // Helper component to redirect authenticated users
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const user = db.getCurrentUser();
-  if (user) {
+  if (user && !user.isGuest) {
     return <Navigate to="/app/home" replace />;
   }
   return <>{children}</>;

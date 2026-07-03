@@ -1,7 +1,22 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { Play } from 'lucide-react';
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+
+  const handleWatchWithoutAccount = () => {
+    localStorage.setItem('vionify_user', JSON.stringify({
+      id: 'guest',
+      type: 'particulier',
+      isGuest: true,
+      name: 'Visitor',
+      email: 'guest@vionify.com',
+      subscriptionStatus: 'inactive'
+    }));
+    window.dispatchEvent(new Event('user-changed'));
+    navigate('/app/home');
+  };
   const images = [
     'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=1066&fit=crop', // Fashion
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&h=1066&fit=crop', // Shoes
@@ -58,6 +73,16 @@ export default function LandingPage() {
         transition={{ delay: 0.4 }}
         className="w-full max-w-md flex flex-col items-center gap-4 mb-8 z-10"
       >
+        <button
+          onClick={handleWatchWithoutAccount}
+          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-full text-xs font-medium text-purple-300 hover:text-purple-200 transition-all cursor-pointer group mb-1"
+        >
+          <div className="w-5 h-5 bg-purple-500/20 text-purple-400 rounded-full flex items-center justify-center group-hover:bg-purple-500/30 group-hover:scale-105 transition-all">
+            <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+          </div>
+          Watch without an account
+        </button>
+
         <Link 
           to="/role-selection"
           className="w-full bg-purple-600 hover:bg-purple-500 text-white text-lg font-semibold py-4 rounded-full text-center transition-all shadow-lg shadow-purple-600/30"

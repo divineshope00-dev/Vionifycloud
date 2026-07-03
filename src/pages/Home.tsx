@@ -7,6 +7,7 @@ import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { CATEGORIES } from '../constants';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Cache for particulier feed to preserve state across navigation
 let cachedParticulierVideos: Video[] | null = null;
@@ -43,7 +44,7 @@ const FeedVideo: React.FC<{
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
   ];
-  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=1247e030e97da3f4aee3";
+  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=87438da2048046b4a3cb";
 
   let currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
   
@@ -274,9 +275,9 @@ const FeedVideo: React.FC<{
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
-          {video.products && video.products.length > 0 ? (
+          {isEntreprise && video.products && video.products.length > 0 ? (
             <img 
-              src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
+               src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
               alt="Product" 
               className="w-full h-full object-cover opacity-50"
               onError={(e) => {
@@ -284,11 +285,11 @@ const FeedVideo: React.FC<{
               }} 
             />
           ) : (
-            <ShoppingBag className="w-12 h-12 text-zinc-700" />
+            <Play className="w-12 h-12 text-zinc-700 fill-zinc-700/20" />
           )}
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="text-white font-medium px-4 py-2 bg-black/60 rounded-lg backdrop-blur-sm">
-              Collection de produits
+              {isEntreprise ? "Collection de produits" : "Vionify"}
             </span>
           </div>
         </div>
@@ -316,7 +317,7 @@ const FeedVideo: React.FC<{
       )}
 
       {/* Product Image Overlay */}
-      {video.products && video.products.length > 0 && (
+      {isEntreprise && video.products && video.products.length > 0 && (
         <div className="absolute bottom-10 right-2 flex -space-x-4 hover:space-x-1 transition-all duration-300 z-10">
           {video.products.slice(0, 4).map((product, idx) => (
             <div 
@@ -351,7 +352,7 @@ const FeedVideo: React.FC<{
 export default function Home() {
   const { user } = useOutletContext<{ user: User }>();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const adaptiveQuality = useAdaptiveQuality();
   const isEntreprise = user.type === 'entreprise';
   const [videos, setVideos] = useState<Video[]>(!isEntreprise && cachedParticulierVideos ? cachedParticulierVideos : []);
@@ -694,6 +695,17 @@ export default function Home() {
 
   const handleLike = async (e: React.MouseEvent, videoId: string) => {
     e.stopPropagation();
+    if (user?.isGuest) {
+      window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+        detail: {
+          title: language === 'fr' ? 'Aimer la vidéo' : 'Like video',
+          message: language === 'fr' 
+            ? "Pour aimer des vidéos, créez un compte particulier. Créez votre compte particulier dès maintenant !"
+            : "To like videos, please create an individual account. Create your account now!"
+        }
+      }));
+      return;
+    }
     if (!hasAccess) {
       navigate('/app/premium');
       return;
@@ -1025,8 +1037,8 @@ export default function Home() {
             </div>
           ))
         ) : (
-          filteredVideos.slice(0, visibleCount).map((video) => (
-            <div key={video.id} className="group relative flex flex-col gap-3">
+          filteredVideos.slice(0, visibleCount).map((video, index) => (
+            <div key={`${video.id}-${index}`} className="group relative flex flex-col gap-3">
             {/* Thumbnail */}
             <FeedVideo 
               video={video} 
@@ -1051,7 +1063,7 @@ export default function Home() {
             />
 
             {/* Products Carousel */}
-            {video.products && video.products.length > 0 && (
+            {isEntreprise && video.products && video.products.length > 0 && (
               <div className="relative group/carousel px-4 md:px-0 pb-4">
                 {/* Left Arrow (Desktop only) */}
                 <button 
@@ -1065,13 +1077,13 @@ export default function Home() {
                 </button>
 
                 <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x pt-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {video.products.map((product) => {
+                  {video.products.map((product, index) => {
                     const finalPrice = product.discount 
                       ? product.price * (1 - product.discount / 100) 
                       : product.price;
                     
                     return (
-                      <div key={product.id} className="shrink-0 w-28 snap-start group/product">
+                      <div key={`${product.id}-${index}`} className="shrink-0 w-28 snap-start group/product">
                         <a 
                           href={product.link}
                           target="_blank"
@@ -1181,6 +1193,18 @@ export default function Home() {
                         className="bg-purple-600 hover:bg-purple-500 text-white text-[10px] px-2 py-1 rounded-full font-medium transition-colors flex items-center gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (user?.isGuest) {
+                            e.preventDefault();
+                            window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+                              detail: {
+                                title: language === 'fr' ? 'Découvrir' : 'Discover',
+                                message: language === 'fr' 
+                                  ? "Le bouton Découvrir ne s'ouvre que pour ceux qui ont créé un compte. Créez votre compte particulier dès maintenant !"
+                                  : "The Discover button is only available for registered users. Create your individual account now!"
+                              }
+                            }));
+                            return;
+                          }
                           if (user.type === 'particulier') {
                             db.incrementVideoClicks(video.id, user.id);
                           } else {
@@ -1274,26 +1298,8 @@ export default function Home() {
       )}
 
       {/* Expiry Warning for Entreprise */}
-      {!hasAccess && isEntreprise && (
-        <div className="mx-4 md:mx-0 mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-            <AlertCircle className="w-6 h-6 text-amber-500" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-amber-500 font-bold mb-1">Abonnement Requis</h3>
-            <p className="text-zinc-400 text-sm mb-3">
-              Votre période d'essai est terminée. Vos vidéos ne sont plus visibles par les utilisateurs du réseau Vionify jusqu'à l'activation d'un abonnement.
-            </p>
-            <Link 
-              to="/app/premium" 
-              className="inline-flex items-center gap-2 bg-amber-500 text-black px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-amber-400 transition-colors"
-            >
-              <Crown className="w-4 h-4" />
-              S'abonner maintenant
-            </Link>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+      </AnimatePresence>
 
       {videos.length === 0 && (
         <div className="text-center py-20 text-zinc-500">

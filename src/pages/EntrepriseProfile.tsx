@@ -7,7 +7,7 @@ import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
 
-const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => void, quality?: VideoQuality }> = ({ video, hasAccess, onClick, quality = '720p' }) => {
+const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => void, quality?: VideoQuality, isEntreprise?: boolean }> = ({ video, hasAccess, onClick, quality = '720p', isEntreprise = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isMuted, setIsMuted] = useState(true);
@@ -76,7 +76,7 @@ const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => voi
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
-          {video.products && video.products.length > 0 ? (
+          {isEntreprise && video.products && video.products.length > 0 ? (
             <img 
               src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
               alt="Product" 
@@ -86,11 +86,11 @@ const FeedVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => voi
               }}
             />
           ) : (
-            <ShoppingBag className="w-12 h-12 text-zinc-700" />
+            <Play className="w-12 h-12 text-zinc-700 fill-zinc-700/20" />
           )}
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="text-white font-medium px-4 py-2 bg-black/60 rounded-lg backdrop-blur-sm">
-              Collection de produits
+              {isEntreprise ? "Collection de produits" : "Vionify"}
             </span>
           </div>
         </div>
@@ -124,8 +124,9 @@ export default function EntrepriseProfile() {
   const { id } = useParams<{ id: string }>();
   const { user } = useOutletContext<{ user: User }>();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const adaptiveQuality = useAdaptiveQuality();
+  const isEntreprise = user?.type === 'entreprise';
   
   const [entreprise, setEntreprise] = useState<User | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -266,10 +267,11 @@ export default function EntrepriseProfile() {
               hasAccess={hasAccess} 
               onClick={() => hasAccess ? navigate(`/app/video/${video.id}`) : navigate('/app/premium')} 
               quality={adaptiveQuality}
+              isEntreprise={isEntreprise}
             />
 
             {/* Products Carousel */}
-            {video.products && video.products.length > 0 && (
+            {isEntreprise && video.products && video.products.length > 0 && (
               <div className="relative group/carousel px-4 md:px-0 pb-4">
                 {/* Left Arrow (Desktop only) */}
                 <button 
@@ -379,6 +381,18 @@ export default function EntrepriseProfile() {
                       rel="noopener noreferrer"
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (user?.isGuest) {
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+                            detail: {
+                              title: language === 'fr' ? 'Découvrir' : 'Discover',
+                              message: language === 'fr' 
+                                ? "Le bouton Découvrir ne s'ouvre que pour ceux qui ont créé un compte. Créez votre compte particulier dès maintenant !"
+                                : "The Discover button is only available for registered users. Create your individual account now!"
+                            }
+                          }));
+                          return;
+                        }
                         if (user.type === 'particulier') {
                           db.incrementVideoClicks(video.id, user.id);
                         } else {

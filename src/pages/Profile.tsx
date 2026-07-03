@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { LogOut, Globe, FileText, Shield, User as UserIcon, Camera, Crown, X, BarChart2, Loader2, Star, Users, Info } from 'lucide-react';
+import { LogOut, Globe, FileText, Shield, User as UserIcon, Camera, X, BarChart2, Loader2, Star, Users, Info } from 'lucide-react';
 import { db, User } from '../services/supabaseService';
 import { countries } from '../utils/countries';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Language } from '../i18n/translations';
 import { isTrialExpired, isSubscriptionExpired } from '../utils/subscription';
+import PremiumIcon from '../components/PremiumIcon';
 
 export default function Profile() {
   const { user } = useOutletContext<{ user: User }>();
@@ -139,14 +140,21 @@ export default function Profile() {
                 <div className="relative inline-flex items-center">
                   <h2 className="text-2xl font-bold text-white">{user.name}</h2>
                   {user.type === 'entreprise' && (
-                    <div className="absolute left-full ml-3 flex items-center gap-1 bg-purple-500/10 px-1.5 py-0.5 rounded-full border border-purple-500/20 whitespace-nowrap">
-                      <span className="text-xs font-bold text-purple-500">{monthlyClients}</span>
-                      <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide">{t('profile.monthlyClients')}</span>
+                    <div className="absolute left-full ml-3 flex items-center gap-2">
+                      <div className="flex items-center gap-1 bg-purple-500/10 px-1.5 py-0.5 rounded-full border border-purple-500/20 whitespace-nowrap">
+                        <span className="text-xs font-bold text-purple-500">{monthlyClients}</span>
+                        <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide">{t('profile.monthlyClients')}</span>
+                      </div>
+                      {(user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing') && (
+                        <div className="bg-purple-500/10 p-1 rounded-full border border-purple-500/20 whitespace-nowrap" title="Entreprise Premium">
+                          <PremiumIcon className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
                   )}
                   {user.type === 'particulier' && user.subscriptionStatus === 'active' && (
-                    <div className="absolute left-full ml-3 bg-orange-500/10 p-1 rounded-full border border-orange-500/20 whitespace-nowrap" title="Membre Fondateur">
-                      <Star className="w-4 h-4 text-orange-500 fill-current" />
+                    <div className="absolute left-full ml-3 bg-purple-500/10 p-1 rounded-full border border-purple-500/20 whitespace-nowrap" title="Membre Premium">
+                      <PremiumIcon className="w-4 h-4" />
                     </div>
                   )}
                 </div>
@@ -189,7 +197,7 @@ export default function Profile() {
       {(user.type === 'entreprise' || user.subscriptionStatus === 'active') && (
         <div className="bg-zinc-900 rounded-2xl p-6 mb-6 border border-zinc-800">
           <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Crown className="w-5 h-5 text-purple-500" />
+            <PremiumIcon className="w-5 h-5" />
             {t('profile.subscription')}
           </h3>
           {user.subscription ? (

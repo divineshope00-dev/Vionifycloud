@@ -77,8 +77,9 @@ export default function VideoDetail() {
   const id = rawId?.trim();
   const { user } = useOutletContext<{ user: User }>();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const adaptiveQuality = useAdaptiveQuality();
+  const isEntreprise = user?.type === 'entreprise';
   
   const [video, setVideo] = useState<Video | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
@@ -115,7 +116,7 @@ export default function VideoDetail() {
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
   ];
-  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=1247e030e97da3f4aee3";
+  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=87438da2048046b4a3cb";
 
   useEffect(() => {
     // Reset tracking state and cleanup subscription when video ID changes
@@ -393,6 +394,18 @@ export default function VideoDetail() {
   const handleLike = async () => {
     if (!video) return;
     
+    if (user?.isGuest) {
+      window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+        detail: {
+          title: language === 'fr' ? 'Aimer la vidéo' : 'Like video',
+          message: language === 'fr' 
+            ? "Pour aimer des vidéos, créez un compte particulier. Créez votre compte particulier dès maintenant !"
+            : "To like videos, please create an individual account. Create your account now!"
+        }
+      }));
+      return;
+    }
+    
     // Optimistic update
     const newIsLiked = !isLiked;
     setIsLiked(newIsLiked);
@@ -433,6 +446,17 @@ export default function VideoDetail() {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.isGuest) {
+      window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+        detail: {
+          title: language === 'fr' ? 'Créer un compte' : 'Account Required',
+          message: language === 'fr' 
+            ? 'Pour pouvoir commenter les vidéos, veuillez créer un compte particulier.' 
+            : 'To post comments on videos, please create an individual account.'
+        }
+      }));
+      return;
+    }
     if (!newComment.trim() || !video) return;
 
     const commentText = newComment.trim();
@@ -513,9 +537,9 @@ export default function VideoDetail() {
   const relatedVideosContent = (
     <>
       <h3 className="font-bold text-lg mb-2">{t('video.similar')}</h3>
-      {relatedVideos.map(v => (
+      {relatedVideos.map((v, index) => (
         <SidebarVideo 
-          key={v.id} 
+          key={`${v.id}-${index}`} 
           v={v} 
           onClick={() => {
             if (user.type === 'particulier') {
@@ -644,7 +668,7 @@ export default function VideoDetail() {
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
-                {video?.products && video.products.length > 0 ? (
+                {isEntreprise && video?.products && video.products.length > 0 ? (
                   <img 
                     src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
                     alt="Product" 
@@ -654,18 +678,18 @@ export default function VideoDetail() {
                     }} 
                   />
                 ) : (
-                  <ShoppingBag className="w-16 h-16 text-zinc-700" />
+                  <Play className="w-16 h-16 text-zinc-700 fill-zinc-700/20" />
                 )}
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                   <span className="text-white font-medium px-6 py-3 bg-black/60 rounded-xl backdrop-blur-sm text-lg">
-                    Collection de produits
+                    {isEntreprise ? "Collection de produits" : "Vionify"}
                   </span>
                 </div>
               </div>
             )}
 
             {/* Float Product Overlay */}
-            {video?.products && video.products.length > 0 && (
+            {isEntreprise && video?.products && video.products.length > 0 && (
               <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 pointer-events-none group-hover:pointer-events-auto transition-opacity opacity-0 group-hover:opacity-100">
                 {video.products.slice(0, 4).map((product, idx) => (
                   <a 
@@ -705,7 +729,7 @@ export default function VideoDetail() {
         </div>
 
         {/* Products Carousel (Below Video Area) */}
-        {video.products && video.products.length > 0 && (
+        {isEntreprise && video.products && video.products.length > 0 && (
           <div className="relative group/carousel pt-6 pb-6 px-4 md:px-0 bg-zinc-950/50 border-b border-zinc-900">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-black text-purple-500">
@@ -843,7 +867,19 @@ export default function VideoDetail() {
               target="_blank" 
               rel="noopener noreferrer"
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-full font-medium transition-colors"
-              onClick={() => {
+              onClick={(e) => {
+                if (user?.isGuest) {
+                  e.preventDefault();
+                  window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+                    detail: {
+                      title: language === 'fr' ? 'Découvrir' : 'Discover',
+                      message: language === 'fr' 
+                        ? "Le bouton Découvrir ne s'ouvre que pour ceux qui ont créé un compte. Créez votre compte particulier dès maintenant !"
+                        : "The Discover button is only available for registered users. Create your individual account now!"
+                    }
+                  }));
+                  return;
+                }
                 if (user?.type === 'particulier') {
                   db.incrementVideoClicks(video.id, user.id);
                 } else {
@@ -955,13 +991,13 @@ export default function VideoDetail() {
           </form>
 
           <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-            {comments.map((comment) => {
+            {comments.map((comment, index) => {
               const commentUser = commentUsers[comment.userId];
               const isOwner = comment.userId === user.id;
               const isEditing = editingCommentId === comment.id;
 
               return (
-                <div key={comment.id} className="relative group">
+                <div key={`${comment.id}-${index}`} className="relative group">
                   <div className="flex gap-3">
                     <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-sm font-bold overflow-hidden">
                       {commentUser?.profilePic ? (
@@ -1063,7 +1099,7 @@ export default function VideoDetail() {
         </div>
 
         {/* Recommended Products */}
-        {recommendedProducts.length > 0 && (
+        {isEntreprise && recommendedProducts.length > 0 && (
           <div className="mt-12 px-4 md:px-0">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold">Produits recommandés</h3>

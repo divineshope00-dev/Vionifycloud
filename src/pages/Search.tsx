@@ -8,9 +8,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
 
 const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => void, onLike: (e: React.MouseEvent, id: string) => void, user: User, quality?: VideoQuality }> = ({ video, hasAccess, onClick, onLike, user, quality = '720p' }) => {
+  const { language } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [duration, setDuration] = useState<number>(0);
   let currentUrl = getBunnyUrl(video.rawVideoUrl, quality as VideoQuality);
+  const isEntreprise = user?.type === 'entreprise';
 
   // Add time fragment to force thumbnail rendering
   if (currentUrl && !currentUrl.includes('#t=')) {
@@ -49,7 +51,7 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
-            {video.products && video.products.length > 0 ? (
+            {isEntreprise && video.products && video.products.length > 0 ? (
               <img 
                 src={video.products[0].imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 
                 alt="Product" 
@@ -59,11 +61,11 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
                 }} 
               />
             ) : (
-              <ShoppingBag className="w-12 h-12 text-zinc-700" />
+              <Play className="w-12 h-12 text-zinc-700 fill-zinc-700/20" />
             )}
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="text-white font-medium px-4 py-2 bg-black/60 rounded-lg backdrop-blur-sm">
-                Collection de produits
+                {isEntreprise ? "Collection de produits" : "Vionify"}
               </span>
             </div>
           </div>
@@ -124,6 +126,18 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (user?.isGuest) {
+                    e.preventDefault();
+                    window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+                      detail: {
+                        title: language === 'fr' ? 'Découvrir' : 'Discover',
+                        message: language === 'fr' 
+                          ? "Le bouton Découvrir ne s'ouvre que pour ceux qui ont créé un compte. Créez votre compte particulier dès maintenant !"
+                          : "The Discover button is only available for registered users. Create your individual account now!"
+                      }
+                    }));
+                    return;
+                  }
                   if (user.type === 'particulier') {
                     db.incrementVideoClicks(video.id, user.id);
                   } else {
@@ -160,7 +174,7 @@ const SearchVideo: React.FC<{ video: Video, hasAccess: boolean, onClick: () => v
 export default function Search() {
   const { user } = useOutletContext<{ user: User }>();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const adaptiveQuality = useAdaptiveQuality();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Video[]>([]);
@@ -202,6 +216,17 @@ export default function Search() {
 
   const handleLike = async (e: React.MouseEvent, videoId: string) => {
     e.stopPropagation();
+    if (user?.isGuest) {
+      window.dispatchEvent(new CustomEvent('vionify-guest-warning', {
+        detail: {
+          title: language === 'fr' ? 'Aimer la vidéo' : 'Like video',
+          message: language === 'fr' 
+            ? "Pour aimer des vidéos, créez un compte particulier. Créez votre compte particulier dès maintenant !"
+            : "To like videos, please create an individual account. Create your account now!"
+        }
+      }));
+      return;
+    }
     if (!hasAccess) {
       navigate('/app/premium');
       return;
@@ -258,9 +283,9 @@ export default function Search() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-6 px-0 md:px-0">
-        {results.map((video) => (
+        {results.map((video, index) => (
           <SearchVideo 
-            key={video.id} 
+            key={`${video.id}-${index}`} 
             video={video} 
             hasAccess={hasAccess} 
             onClick={() => hasAccess ? navigate(`/app/video/${video.id}`) : navigate('/app/premium')} 

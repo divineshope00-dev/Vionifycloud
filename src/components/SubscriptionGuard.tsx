@@ -1,9 +1,11 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { AlertTriangle, Crown, Bot } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { canAccessContent } from '../utils/subscription';
+import PremiumIcon from './PremiumIcon';
 
 interface SubscriptionGuardProps {
   user: User;
@@ -12,17 +14,11 @@ interface SubscriptionGuardProps {
 
 export default function SubscriptionGuard({ user, children }: SubscriptionGuardProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { t } = useLanguage();
 
   // Determine if Video IA sub is active
   const aiQuotaItem = localStorage.getItem(`vionify_ai_quota_${user.id}`);
   const aiQuota = aiQuotaItem ? JSON.parse(aiQuotaItem) : null;
-  // It's active if plan exists and is NOT 'free' (or maybe if they still have free credits? No, "actif" implies premium for all menus to open)
-  // Wait, if they have 'free' plan, do they bypass the guard? No, only paid AI plan opens things.
-  // Actually, wait, if they have 'free' plan, they can use the 3 free prompts, but do those 3 free prompts open ALL menus? 
-  // User: "si son abonnement de génération de videoia est actif alors tous les menu sont actif même celui du menu publier"
-  // Let's assume paid AI sub = unlocked menus. So plan !== 'free'
   const hasAiSub = aiQuota && aiQuota.plan && aiQuota.plan !== 'free';
 
   if (canAccessContent(user) || hasAiSub) {
@@ -30,33 +26,39 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Ambient background effect */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-600/10 blur-[130px] rounded-full pointer-events-none" />
-      
-      <div className="bg-zinc-900/40 backdrop-blur-2xl border border-white/10 rounded-[40px] p-10 max-w-md w-full text-center shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10">
-        <div className="w-24 h-24 bg-gradient-to-br from-red-500/20 to-red-600/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
-          <AlertTriangle className="w-12 h-12 text-red-500" />
-        </div>
-        
-        <h2 className="text-2xl font-bold text-white mb-4 uppercase tracking-tight">
-          {t('subscription.guard.title')}
-        </h2>
-        
-        <p className="text-zinc-400 mb-10 leading-relaxed text-sm font-medium">
-          {t('subscription.guard.desc')}
-        </p>
-
-        <div className="space-y-4">
-          <button
-            onClick={() => navigate('/app/premium')}
-            className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
-          >
-            <Crown className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            <span className="text-base">{t('subscription.guard.button')}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      <AnimatePresence>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+        />
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:bottom-8 md:w-full md:max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 z-[70] shadow-2xl"
+        >
+          <div className="flex flex-col items-center text-center mt-2">
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">
+              {t('subscription.guard.title')}
+            </h2>
+            <p className="text-zinc-400 mb-6 leading-relaxed text-sm">
+              {t('subscription.guard.desc')}
+            </p>
+            <button
+              onClick={() => navigate('/app/premium')}
+              className="w-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-600/20 hover:shadow-purple-600/40 hover:-translate-y-1 active:scale-95 group"
+            >
+              <PremiumIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              <span className="text-base">{t('subscription.guard.button')}</span>
+            </button>
+          </div>
+        </motion.div>
+      </AnimatePresence>
   );
 }

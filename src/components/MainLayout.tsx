@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Home, PlusSquare, Library as LibraryIcon, Crown, User as UserIcon, Star, X, AlertCircle, ShoppingBag, Search } from 'lucide-react';
+import { Home, PlusSquare, Library as LibraryIcon, User as UserIcon, Star, X, AlertCircle, ShoppingBag, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, User } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isTrialExpired, hasActiveSubscription } from '../utils/subscription';
 import EnterpriseOnboarding from './EnterpriseOnboarding';
+import VLogo from './VLogo';
+import PremiumIcon from './PremiumIcon';
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -15,7 +17,10 @@ export default function MainLayout() {
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const [expiryMessage, setExpiryMessage] = useState('');
   const [isTrialWarning, setIsTrialWarning] = useState(false);
-  const { t } = useLanguage();
+  const [showGuestWarning, setShowGuestWarning] = useState(false);
+  const [guestWarningMessage, setGuestWarningMessage] = useState('');
+  const [guestWarningTitle, setGuestWarningTitle] = useState('');
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     const handleUserChange = () => {
@@ -23,13 +28,37 @@ export default function MainLayout() {
       setUser(updatedUser);
     };
 
+    const handleGuestWarningEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ title: string; message: string }>;
+      if (customEvent.detail) {
+        setGuestWarningTitle(customEvent.detail.title);
+        setGuestWarningMessage(customEvent.detail.message);
+        setShowGuestWarning(true);
+      }
+    };
+
     window.addEventListener('user-changed', handleUserChange);
+    window.addEventListener('vionify-guest-warning', handleGuestWarningEvent as EventListener);
     
     const currentUser = db.getCurrentUser();
     if (!currentUser) {
-      // Save the current path to redirect back after login/signup
-      const currentPath = location.pathname + location.search;
-      navigate(`/role-selection?redirect=${encodeURIComponent(currentPath)}`);
+      if (location.pathname.startsWith('/app/video/')) {
+        const guestUser = {
+          id: 'guest',
+          type: 'particulier',
+          isGuest: true,
+          name: 'Visitor',
+          email: 'guest@vionify.com',
+          subscriptionStatus: 'inactive'
+        };
+        localStorage.setItem('vionify_user', JSON.stringify(guestUser));
+        setUser(guestUser as User);
+        window.dispatchEvent(new Event('user-changed'));
+      } else {
+        // Save the current path to redirect back after login/signup
+        const currentPath = location.pathname + location.search;
+        navigate(`/role-selection?redirect=${encodeURIComponent(currentPath)}`);
+      }
     } else {
       setUser(currentUser);
       
@@ -82,14 +111,55 @@ export default function MainLayout() {
 
     return () => {
       window.removeEventListener('user-changed', handleUserChange);
+      window.removeEventListener('vionify-guest-warning', handleGuestWarningEvent as EventListener);
     };
   }, [navigate, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (user?.isGuest) {
+      if (location.pathname === '/app/club') {
+        setGuestWarningTitle(language === 'fr' ? 'Accès au Club Privé' : 'Private Club Access');
+        setGuestWarningMessage(
+          language === 'fr' 
+            ? 'Pour avoir accès au club, créez un compte particulier.' 
+            : 'To get access to the club, please create a personal account.'
+        );
+        setShowGuestWarning(true);
+      } else if (location.pathname === '/app/profile') {
+        setGuestWarningTitle(language === 'fr' ? 'Avantages du Compte Particulier' : 'Individual Account Benefits');
+        setGuestWarningMessage(
+          language === 'fr' 
+            ? 'Créez un compte particulier pour sauvegarder vos vidéos favorites, poster des commentaires, rejoindre le Club Privé exclusif et accéder à toutes nos fonctionnalités !' 
+            : 'Create a personal account to save your favorite videos, post comments, join the exclusive Private Club, and unlock premium features!'
+        );
+        setShowGuestWarning(true);
+      } else {
+        setShowGuestWarning(false);
+      }
+    } else {
+      setShowGuestWarning(false);
+    }
+  }, [location.pathname, user?.isGuest, language]);
 
   const closeExpiryWarning = () => {
     if (user) {
       localStorage.setItem(`vionify_expiry_warning_${user.id}`, 'true');
     }
     setShowExpiryWarning(false);
+  };
+
+  const closeGuestWarning = () => {
+    setShowGuestWarning(false);
+    if (location.pathname === '/app/club' || location.pathname === '/app/profile') {
+      navigate('/app/home');
+    }
+  };
+
+  const handleCreateAccountFromGuest = () => {
+    setShowGuestWarning(false);
+    localStorage.removeItem('vionify_user');
+    window.dispatchEvent(new Event('user-changed'));
+    navigate('/role-selection');
   };
 
   if (!user) return null;
@@ -137,7 +207,7 @@ export default function MainLayout() {
           { path: '/app/club', icon: Star, label: t('nav.club') }
         ]
     ),
-    { path: '/app/premium', icon: Crown, label: t('nav.premium') },
+    { path: '/app/premium', icon: PremiumIcon, label: t('nav.premium') },
     { path: '/app/profile', icon: ProfileIcon, label: '' },
   ];
 
@@ -166,7 +236,7 @@ export default function MainLayout() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:bottom-8 md:w-full md:max-w-md bg-zinc-900 border-t md:border border-zinc-800 rounded-t-3xl md:rounded-3xl p-6 z-[70] shadow-2xl"
+              className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:bottom-8 md:w-full md:max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 z-[70] shadow-2xl"
             >
               <button 
                 onClick={closeExpiryWarning}
@@ -177,7 +247,7 @@ export default function MainLayout() {
               
               <div className="flex flex-col items-center text-center mt-2">
                 <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mb-4 border border-purple-500/20">
-                  <span className="text-purple-500 font-bold text-3xl">V</span>
+                  <VLogo className="w-8 h-8 text-purple-500" />
                 </div>
                 
                 <h3 className="text-xl font-bold text-white mb-2">
@@ -196,6 +266,56 @@ export default function MainLayout() {
                   className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-lg shadow-purple-600/20"
                 >
                   {isTrialWarning ? 'Choisir un abonnement' : 'Renouveler mon abonnement'}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Guest Warning Modal (Pull-up) */}
+      <AnimatePresence>
+        {showGuestWarning && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+              onClick={closeGuestWarning}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:bottom-8 md:w-full md:max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 z-[70] shadow-2xl"
+            >
+              <button 
+                onClick={closeGuestWarning}
+                className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-2 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="flex flex-col items-center text-center mt-2">
+                <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mb-4 border border-purple-500/20">
+                  <PremiumIcon className="w-8 h-8" />
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {guestWarningTitle}
+                </h3>
+                
+                <p className="text-zinc-400 mb-6 text-sm leading-relaxed">
+                  {guestWarningMessage}
+                </p>
+                
+                <button
+                  onClick={handleCreateAccountFromGuest}
+                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-purple-600/20 transform hover:-translate-y-0.5"
+                >
+                  Create an account
                 </button>
               </div>
             </motion.div>
@@ -223,7 +343,7 @@ export default function MainLayout() {
 
       {/* Side Navigation (Desktop) */}
       <nav className="hidden md:flex fixed top-0 bottom-0 left-0 w-24 bg-zinc-900 border-r border-zinc-800 flex-col items-center py-8 px-2 gap-8 z-50">
-        <div className="text-purple-500 font-bold text-2xl mb-4">V</div>
+        <div className="mb-4"><VLogo className="w-8 h-8 text-purple-500" /></div>
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           const Icon = item.icon;
