@@ -6,6 +6,7 @@ import { db, User, Video, Comment, getBunnyUrl, VideoQuality, Product } from '..
 import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
+import { fetchAndParseVast, fireTrackingUrl, VastAdData } from '../utils/vastPlayer';
 
 const SidebarVideo: React.FC<{ v: Video, onClick: () => void }> = ({ v, onClick }) => {
   const thumbUrl = v.rawVideoUrl ? `${getBunnyUrl(v.rawVideoUrl, '480p')}#t=0.001` : null;
@@ -116,8 +117,19 @@ export default function VideoDetail() {
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
   ];
-  // Lien direct ExoClick (ExoClick Direct Link / Smartlink) à configurer si nécessaire
-  const EXOCLICK_ADS_LINK = "https://syndication.exoclick.com/splash.php?cat=all";
+  // Balise VAST ExoClick
+  const EXOCLICK_ADS_LINK = "https://s.magsrv.com/v1/vast.php?idz=5966100";
+
+  const [adClickUrl, setAdClickUrl] = useState(EXOCLICK_ADS_LINK);
+  const [adTrackingUrls, setAdTrackingUrls] = useState<VastAdData | null>(null);
+  const [firedEvents, setFiredEvents] = useState({
+    impression: false,
+    start: false,
+    firstQuartile: false,
+    midpoint: false,
+    thirdQuartile: false,
+    complete: false,
+  });
 
   useEffect(() => {
     // Reset tracking state and cleanup subscription when video ID changes
@@ -133,15 +145,32 @@ export default function VideoDetail() {
     };
   }, [id]);
 
-  const handleVideoEnded = () => {
+  const handleVideoEnded = async () => {
     if (user?.type !== 'entreprise') {
-      const index = Math.floor(Math.random() * VIDEO_ADS.length);
-      setAdVideoUrl(VIDEO_ADS[index]);
+      const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
+      
+      setAdVideoUrl(vastData.videoUrl);
+      const targetClickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
+      setAdClickUrl(targetClickUrl);
       setAdCurrentTime(0);
       setAdDuration(15);
+      
+      setFiredEvents({
+        impression: false,
+        start: false,
+        firstQuartile: false,
+        midpoint: false,
+        thirdQuartile: false,
+        complete: false,
+      });
+      setAdTrackingUrls(vastData);
       setShowAd(true);
+
+      // Fire Impression trackers immediately!
+      vastData.impressionUrls.forEach(url => fireTrackingUrl(url));
+
       try {
-        window.open(EXOCLICK_ADS_LINK, '_blank');
+        window.open(targetClickUrl, '_blank');
       } catch (e) {
         console.warn("Popup blocked, showing ad overlay");
       }
@@ -150,7 +179,31 @@ export default function VideoDetail() {
 
   const handleAdTimeUpdate = () => {
     if (adVideoRef.current) {
-      setAdCurrentTime(adVideoRef.current.currentTime);
+      const currentTime = adVideoRef.current.currentTime;
+      setAdCurrentTime(currentTime);
+
+      if (!adTrackingUrls) return;
+
+      const duration = adDuration || 15;
+      const progress = currentTime / duration;
+
+      // Track events at different quartiles
+      if (!firedEvents.start && currentTime > 0.1) {
+        setFiredEvents(prev => ({ ...prev, start: true }));
+        adTrackingUrls.trackingEvents['start']?.forEach(url => fireTrackingUrl(url));
+      }
+      if (!firedEvents.firstQuartile && progress >= 0.25) {
+        setFiredEvents(prev => ({ ...prev, firstQuartile: true }));
+        adTrackingUrls.trackingEvents['firstQuartile']?.forEach(url => fireTrackingUrl(url));
+      }
+      if (!firedEvents.midpoint && progress >= 0.5) {
+        setFiredEvents(prev => ({ ...prev, midpoint: true }));
+        adTrackingUrls.trackingEvents['midpoint']?.forEach(url => fireTrackingUrl(url));
+      }
+      if (!firedEvents.thirdQuartile && progress >= 0.75) {
+        setFiredEvents(prev => ({ ...prev, thirdQuartile: true }));
+        adTrackingUrls.trackingEvents['thirdQuartile']?.forEach(url => fireTrackingUrl(url));
+      }
     }
   };
 
@@ -161,6 +214,10 @@ export default function VideoDetail() {
   };
 
   const handleAdEnded = () => {
+    if (adTrackingUrls && !firedEvents.complete) {
+      setFiredEvents(prev => ({ ...prev, complete: true }));
+      adTrackingUrls.trackingEvents['complete']?.forEach(url => fireTrackingUrl(url));
+    }
     handleCloseAd();
   };
 
@@ -174,7 +231,8 @@ export default function VideoDetail() {
 
   const handleAdClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.open(EXOCLICK_ADS_LINK, '_blank');
+    window.open(adClickUrl, '_blank');
+    adTrackingUrls?.trackingEvents['click']?.forEach(url => fireTrackingUrl(url));
   };
 
   useEffect(() => {
@@ -573,7 +631,7 @@ export default function VideoDetail() {
                   onTimeUpdate={handleAdTimeUpdate}
                   onLoadedMetadata={handleAdLoadedMetadata}
                   onEnded={handleAdEnded}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-black"
                 />
 
                 {/* Ad Controls Overlay */}
@@ -581,7 +639,7 @@ export default function VideoDetail() {
                   {/* Top Bar */}
                   <div className="flex justify-between items-center w-full pointer-events-auto">
                     <span className="bg-purple-600/90 text-white text-xs uppercase tracking-wider font-semibold py-1 px-3 rounded-full flex items-center gap-1.5 shadow-md">
-                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Sponsorisé par HilltopAds
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Sponsorisé par ExoClick
                     </span>
                     <div className="flex items-center gap-2">
                       <button
