@@ -116,7 +116,8 @@ export default function VideoDetail() {
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
   ];
-  const HILLTOP_ADS_LINK = "https://out.htads.net/afu.php?zoneid=87438da2048046b4a3cb";
+  // Lien direct ExoClick (ExoClick Direct Link / Smartlink) à configurer si nécessaire
+  const EXOCLICK_ADS_LINK = "https://syndication.exoclick.com/splash.php?cat=all";
 
   useEffect(() => {
     // Reset tracking state and cleanup subscription when video ID changes
@@ -140,7 +141,7 @@ export default function VideoDetail() {
       setAdDuration(15);
       setShowAd(true);
       try {
-        window.open(HILLTOP_ADS_LINK, '_blank');
+        window.open(EXOCLICK_ADS_LINK, '_blank');
       } catch (e) {
         console.warn("Popup blocked, showing ad overlay");
       }
@@ -173,7 +174,7 @@ export default function VideoDetail() {
 
   const handleAdClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.open(HILLTOP_ADS_LINK, '_blank');
+    window.open(EXOCLICK_ADS_LINK, '_blank');
   };
 
   useEffect(() => {
