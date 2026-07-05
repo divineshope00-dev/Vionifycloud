@@ -1,8 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-const rawUrl = (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL.trim() !== '') 
-  ? import.meta.env.VITE_SUPABASE_URL 
-  : 'https://vlrddnnhwtybwhciqkvv.supabase.co';
+const getEnv = (key: string): string => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key] as string;
+    }
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key] as string;
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  return '';
+};
+
+const rawUrl = getEnv('VITE_SUPABASE_URL') || 'https://vlrddnnhwtybwhciqkvv.supabase.co';
 
 const getSupabaseUrl = (url: string) => {
   if (url.startsWith('http')) return url;
@@ -14,9 +28,7 @@ const getSupabaseUrl = (url: string) => {
 
 const supabaseUrl = getSupabaseUrl(rawUrl);
 
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY && import.meta.env.VITE_SUPABASE_ANON_KEY.trim() !== '') 
-  ? import.meta.env.VITE_SUPABASE_ANON_KEY 
-  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRkbm5od3R5YndoY2lxa3Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mzc3NjAsImV4cCI6MjA5MDAxMzc2MH0.qcyEe5GhPcQfAuSGppYSXEfeTy4LrL77Lc1nqNsfAaY';
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRkbm5od3R5YndoY2lxa3Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mzc3NjAsImV4cCI6MjA5MDAxMzc2MH0.qcyEe5GhPcQfAuSGppYSXEfeTy4LrL77Lc1nqNsfAaY';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

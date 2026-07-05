@@ -35,7 +35,7 @@ const FeedVideo: React.FC<{
   const [adVideoUrl, setAdVideoUrl] = useState('');
   const [adCurrentTime, setAdCurrentTime] = useState(0);
   const [adDuration, setAdDuration] = useState(15);
-  const [isAdMuted, setIsAdMuted] = useState(isMuted);
+  const [isAdMuted, setIsAdMuted] = useState(false);
 
   const adProgress = adDuration > 0 ? (adCurrentTime / adDuration) * 100 : 0;
 
@@ -65,6 +65,43 @@ const FeedVideo: React.FC<{
   if (currentUrl && !currentUrl.includes('#t=')) {
     currentUrl += '#t=0.001';
   }
+
+  // Preload VAST ad data in background as soon as the main video starts playing or video id changes
+  useEffect(() => {
+    let active = true;
+    const preloadAd = async () => {
+      try {
+        const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
+        if (active) {
+          setAdVideoUrl(vastData.videoUrl);
+          const targetClickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
+          setAdClickUrl(targetClickUrl);
+          setAdTrackingUrls(vastData);
+        }
+      } catch (error) {
+        console.error("Failed to preload VAST ad in background:", error);
+      }
+    };
+    if (isPlaying || preload === "auto") {
+      preloadAd();
+    }
+    return () => {
+      active = false;
+    };
+  }, [video.id, isPlaying, preload]);
+
+  // Handle play/pause state of the background preloaded ad video element
+  useEffect(() => {
+    if (adVideoRef.current) {
+      if (showAd) {
+        adVideoRef.current.play().catch((err) => {
+          console.warn("Could not play ad video: ", err);
+        });
+      } else {
+        adVideoRef.current.pause();
+      }
+    }
+  }, [showAd]);
 
   useEffect(() => {
     // When quality changes, try to stay at the same time
@@ -134,34 +171,48 @@ const FeedVideo: React.FC<{
   };
 
   const handleVideoEnded = async () => {
-    if (!isEntreprise) {
-      const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
-      
-      setAdVideoUrl(vastData.videoUrl);
-      const targetClickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
-      setAdClickUrl(targetClickUrl);
-      setAdCurrentTime(0);
-      setAdDuration(15);
-      
-      setFiredEvents({
-        impression: false,
-        start: false,
-        firstQuartile: false,
-        midpoint: false,
-        thirdQuartile: false,
-        complete: false,
-      });
-      setAdTrackingUrls(vastData);
-      setShowAd(true);
+    let currentAdUrl = adVideoUrl;
+    let clickUrl = adClickUrl;
+    let tracking = adTrackingUrls;
 
-      // Fire Impression trackers immediately!
-      vastData.impressionUrls.forEach(url => fireTrackingUrl(url));
-
+    // Fallback if VAST ad was not preloaded yet
+    if (!currentAdUrl) {
       try {
-        window.open(targetClickUrl, '_blank');
-      } catch (e) {
-        console.warn("Popup blocked, showing ad overlay");
+        const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
+        currentAdUrl = vastData.videoUrl;
+        clickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
+        tracking = vastData;
+        setAdVideoUrl(currentAdUrl);
+        setAdClickUrl(clickUrl);
+        setAdTrackingUrls(tracking);
+      } catch (error) {
+        console.error("Failed to load fallback ad:", error);
       }
+    }
+
+    setAdCurrentTime(0);
+    setAdDuration(15);
+    
+    setFiredEvents({
+      impression: false,
+      start: false,
+      firstQuartile: false,
+      midpoint: false,
+      thirdQuartile: false,
+      complete: false,
+    });
+    
+    setShowAd(true);
+
+    if (tracking) {
+      // Fire Impression trackers immediately!
+      tracking.impressionUrls.forEach(url => fireTrackingUrl(url));
+    }
+
+    try {
+      window.open(clickUrl, '_blank');
+    } catch (e) {
+      console.warn("Popup blocked, showing ad overlay");
     }
   };
 
@@ -229,95 +280,84 @@ const FeedVideo: React.FC<{
       data-video-id={video.id}
       onClick={onClick}
     >
-      {showAd && !isEntreprise && (
-        <div className="absolute inset-0 bg-black z-20 flex flex-col items-center justify-center overflow-hidden">
-          {/* Ad Video Player */}
-          <video
-            ref={adVideoRef}
-            src={adVideoUrl}
-            autoPlay
-            playsInline
-            muted={isAdMuted}
-            onTimeUpdate={handleAdTimeUpdate}
-            onLoadedMetadata={handleAdLoadedMetadata}
-            onEnded={handleAdEnded}
-            className="w-full h-full object-contain bg-black"
-          />
+      {/* Ad Video Player & Overlay (Always rendered to enable background preloading, but hidden/visible based on showAd) */}
+      <div 
+        className={`absolute inset-0 bg-black z-20 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${
+          showAd ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'
+        }`}
+      >
+        {/* Ad Video Player */}
+        <video
+          ref={adVideoRef}
+          src={adVideoUrl || undefined}
+          preload="auto"
+          playsInline
+          muted={isAdMuted}
+          onTimeUpdate={handleAdTimeUpdate}
+          onLoadedMetadata={handleAdLoadedMetadata}
+          onEnded={handleAdEnded}
+          className="w-full h-full object-contain bg-black"
+        />
 
-          {/* Ad Controls Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 flex flex-col justify-between p-3 pointer-events-none z-30">
-            {/* Top Bar */}
-            <div className="flex justify-between items-center w-full pointer-events-auto">
-              <span className="bg-purple-600/90 text-white text-[10px] uppercase tracking-wider font-semibold py-0.5 px-2 rounded-full flex items-center gap-1 shadow-md">
-                <Sparkles className="w-3 h-3" /> Sponsorisé par ExoClick
+        {/* Ad Controls Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 flex flex-col justify-between p-3 pointer-events-none z-30">
+          {/* Top Bar */}
+          <div className="flex justify-between items-center w-full pointer-events-auto">
+            <span className="bg-purple-600/90 text-white text-[10px] uppercase tracking-wider font-semibold py-0.5 px-2 rounded-full flex items-center gap-1 shadow-md">
+              <Sparkles className="w-3 h-3" /> Sponsorisé par ExoClick
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAdMuted(!isAdMuted);
+                }}
+                className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
+              >
+                {isAdMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseAd();
+                }}
+                className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
+                title="Fermer la publicité"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Bar with Countdown & Progress */}
+          <div className="w-full flex flex-col gap-1.5 pointer-events-auto mt-auto">
+            {/* Progress Bar */}
+            <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+              <div 
+                className="bg-purple-500 h-full transition-all duration-200"
+                style={{ width: `${adProgress}%` }}
+              />
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-zinc-300 font-medium bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
+                La publicité se termine dans {Math.ceil(Math.max(0, adDuration - adCurrentTime))}s
               </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsAdMuted(!isAdMuted);
-                  }}
-                  className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
-                >
-                  {isAdMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCloseAd();
-                  }}
-                  className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
-                  title="Passer la publicité"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Middle Prompt / Playback Area */}
-            <div 
-              className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
-              onClick={handleAdClick}
-            >
-              {/* Overlay pulse prompt to discover */}
-              <div className="bg-black/75 border border-zinc-800 rounded-xl px-4 py-2 text-center backdrop-blur-sm max-w-[200px] hover:scale-105 transition-transform shadow-2xl pointer-events-none">
-                <p className="text-white text-xs font-semibold mb-0.5 flex items-center justify-center gap-1">
-                  Découvrir l'offre <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
-                </p>
-                <p className="text-zinc-400 text-[10px]">Cliquez pour voir l'annonce</p>
-              </div>
-            </div>
-
-            {/* Bottom Bar with Countdown & Progress */}
-            <div className="w-full flex flex-col gap-1.5 pointer-events-auto mt-auto">
-              {/* Progress Bar */}
-              <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
-                <div 
-                  className="bg-purple-500 h-full transition-all duration-200"
-                  style={{ width: `${adProgress}%` }}
-                />
-              </div>
-
-              {/* Bottom Actions */}
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-zinc-300 font-medium bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
-                  La publicité se termine dans {Math.ceil(Math.max(0, adDuration - adCurrentTime))}s
-                </span>
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCloseAd();
-                  }}
-                  className="bg-purple-600 hover:bg-purple-700 text-white py-1 px-3 rounded text-[11px] font-medium transition-all shadow-md active:scale-95"
-                >
-                  Passer la publicité
-                </button>
-              </div>
+              
+              <button
+                type="button"
+                onClick={handleAdClick}
+                className="bg-purple-600 hover:bg-purple-500 text-white py-1 px-3 rounded text-[11px] font-semibold tracking-wide flex items-center gap-1 transition-all shadow-md active:scale-95 animate-bounce"
+              >
+                Découvrir l'offre <ExternalLink className="w-3 h-3" />
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {currentUrl ? (
         <video 
@@ -325,7 +365,7 @@ const FeedVideo: React.FC<{
           src={currentUrl} 
           className="w-full h-full object-cover"
           playsInline
-          loop={isEntreprise}
+          loop={false}
           muted={isMuted}
           preload={preload || (isPlaying ? "auto" : "metadata")}
           onTimeUpdate={handleTimeUpdate}

@@ -137,7 +137,25 @@ export default function VideoDetail() {
     setMonthlyClients(0);
     setShowAd(false);
     
+    // Preload VAST ad data in background as soon as the video ID changes
+    let active = true;
+    const preloadAd = async () => {
+      try {
+        const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
+        if (active) {
+          setAdVideoUrl(vastData.videoUrl);
+          const targetClickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
+          setAdClickUrl(targetClickUrl);
+          setAdTrackingUrls(vastData);
+        }
+      } catch (error) {
+        console.error("Failed to preload VAST ad in background:", error);
+      }
+    };
+    preloadAd();
+    
     return () => {
+      active = false;
       if (cleanupSubscription.current) {
         cleanupSubscription.current();
         cleanupSubscription.current = null;
@@ -145,35 +163,62 @@ export default function VideoDetail() {
     };
   }, [id]);
 
-  const handleVideoEnded = async () => {
-    if (user?.type !== 'entreprise') {
-      const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
-      
-      setAdVideoUrl(vastData.videoUrl);
-      const targetClickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
-      setAdClickUrl(targetClickUrl);
-      setAdCurrentTime(0);
-      setAdDuration(15);
-      
-      setFiredEvents({
-        impression: false,
-        start: false,
-        firstQuartile: false,
-        midpoint: false,
-        thirdQuartile: false,
-        complete: false,
-      });
-      setAdTrackingUrls(vastData);
-      setShowAd(true);
-
-      // Fire Impression trackers immediately!
-      vastData.impressionUrls.forEach(url => fireTrackingUrl(url));
-
-      try {
-        window.open(targetClickUrl, '_blank');
-      } catch (e) {
-        console.warn("Popup blocked, showing ad overlay");
+  // Handle play/pause state of the background preloaded ad video element
+  useEffect(() => {
+    if (adVideoRef.current) {
+      if (showAd) {
+        adVideoRef.current.play().catch((err) => {
+          console.warn("Could not play ad video: ", err);
+        });
+      } else {
+        adVideoRef.current.pause();
       }
+    }
+  }, [showAd]);
+
+  const handleVideoEnded = async () => {
+    let currentAdUrl = adVideoUrl;
+    let clickUrl = adClickUrl;
+    let tracking = adTrackingUrls;
+
+    // Fallback if VAST ad was not preloaded yet
+    if (!currentAdUrl) {
+      try {
+        const vastData = await fetchAndParseVast(EXOCLICK_ADS_LINK, VIDEO_ADS);
+        currentAdUrl = vastData.videoUrl;
+        clickUrl = vastData.clickThroughUrl || EXOCLICK_ADS_LINK;
+        tracking = vastData;
+        setAdVideoUrl(currentAdUrl);
+        setAdClickUrl(clickUrl);
+        setAdTrackingUrls(tracking);
+      } catch (error) {
+        console.error("Failed to load fallback ad:", error);
+      }
+    }
+
+    setAdCurrentTime(0);
+    setAdDuration(15);
+    
+    setFiredEvents({
+      impression: false,
+      start: false,
+      firstQuartile: false,
+      midpoint: false,
+      thirdQuartile: false,
+      complete: false,
+    });
+    
+    setShowAd(true);
+
+    if (tracking) {
+      // Fire Impression trackers immediately!
+      tracking.impressionUrls.forEach(url => fireTrackingUrl(url));
+    }
+
+    try {
+      window.open(clickUrl, '_blank');
+    } catch (e) {
+      console.warn("Popup blocked, showing ad overlay");
     }
   };
 
@@ -619,97 +664,84 @@ export default function VideoDetail() {
         <div className="sticky top-0 z-40 bg-black pb-2 md:pb-4 transform-gpu border-b border-zinc-800 md:border-none pt-[env(safe-area-inset-top)]">
           {/* Video Player */}
           <div className="w-full aspect-video bg-black md:rounded-2xl overflow-hidden relative group shadow-lg">
-            {showAd && user?.type !== 'entreprise' && (
-              <div className="absolute inset-0 bg-black z-20 flex flex-col items-center justify-center overflow-hidden">
-                {/* Ad Video Player */}
-                <video
-                  ref={adVideoRef}
-                  src={adVideoUrl}
-                  autoPlay
-                  playsInline
-                  muted={isAdMuted}
-                  onTimeUpdate={handleAdTimeUpdate}
-                  onLoadedMetadata={handleAdLoadedMetadata}
-                  onEnded={handleAdEnded}
-                  className="w-full h-full object-contain bg-black"
-                />
+            {/* Ad Video Player & Overlay (Always rendered to enable background preloading, but hidden/visible based on showAd) */}
+            <div 
+              className={`absolute inset-0 bg-black z-20 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${
+                showAd ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'
+              }`}
+            >
+              {/* Ad Video Player */}
+              <video
+                ref={adVideoRef}
+                src={adVideoUrl || undefined}
+                preload="auto"
+                playsInline
+                muted={isAdMuted}
+                onTimeUpdate={handleAdTimeUpdate}
+                onLoadedMetadata={handleAdLoadedMetadata}
+                onEnded={handleAdEnded}
+                className="w-full h-full object-contain bg-black"
+              />
 
-                {/* Ad Controls Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 flex flex-col justify-between p-4 pointer-events-none z-30">
-                  {/* Top Bar */}
-                  <div className="flex justify-between items-center w-full pointer-events-auto">
-                    <span className="bg-purple-600/90 text-white text-xs uppercase tracking-wider font-semibold py-1 px-3 rounded-full flex items-center gap-1.5 shadow-md">
-                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Sponsorisé par ExoClick
+              {/* Ad Controls Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 flex flex-col justify-between p-4 pointer-events-none z-30">
+                {/* Top Bar */}
+                <div className="flex justify-between items-center w-full pointer-events-auto">
+                  <span className="bg-purple-600/90 text-white text-xs uppercase tracking-wider font-semibold py-1 px-3 rounded-full flex items-center gap-1.5 shadow-md">
+                    <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Sponsorisé par ExoClick
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsAdMuted(!isAdMuted);
+                      }}
+                      className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                    >
+                      {isAdMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseAd();
+                      }}
+                      className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                      title="Fermer la publicité"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom Bar with Countdown & Progress */}
+                <div className="w-full flex flex-col gap-2 pointer-events-auto mt-auto">
+                  {/* Progress Bar */}
+                  <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-purple-500 h-full transition-all duration-200"
+                      style={{ width: `${adProgress}%` }}
+                    />
+                  </div>
+
+                  {/* Bottom Actions */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-300 font-medium bg-black/40 px-3 py-1 rounded backdrop-blur-sm">
+                      La publicité se termine dans {Math.ceil(Math.max(0, adDuration - adCurrentTime))}s
                     </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsAdMuted(!isAdMuted);
-                        }}
-                        className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
-                      >
-                        {isAdMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCloseAd();
-                        }}
-                        className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
-                        title="Passer la publicité"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Middle Area for redirect trigger */}
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
-                    onClick={handleAdClick}
-                  >
-                    <div className="bg-black/75 border border-zinc-850 rounded-2xl p-5 text-center backdrop-blur-md max-w-sm hover:scale-105 transition-transform duration-300 shadow-2xl pointer-events-none">
-                      <div className="w-10 h-10 bg-purple-600/30 rounded-full flex items-center justify-center text-purple-400 mx-auto mb-3">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <h4 className="text-white font-semibold text-sm mb-1 flex items-center justify-center gap-1.5">
-                        Découvrir l'offre <ExternalLink className="w-4 h-4 text-purple-400" />
-                      </h4>
-                      <p className="text-zinc-400 text-xs">Visitez notre sponsor pour continuer votre lecture gratuite</p>
-                    </div>
-                  </div>
-
-                  {/* Bottom Bar with Countdown & Progress */}
-                  <div className="w-full flex flex-col gap-2 pointer-events-auto mt-auto">
-                    {/* Progress Bar */}
-                    <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-purple-500 h-full transition-all duration-200"
-                        style={{ width: `${adProgress}%` }}
-                      />
-                    </div>
-
-                    {/* Bottom Actions */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-zinc-300 font-medium bg-black/40 px-3 py-1 rounded backdrop-blur-sm">
-                        La publicité se termine dans {Math.ceil(Math.max(0, adDuration - adCurrentTime))}s
-                      </span>
-                      
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCloseAd();
-                        }}
-                        className="bg-purple-600 hover:bg-purple-700 text-white py-1.5 px-4 rounded-lg text-xs font-semibold transition-all shadow-lg active:scale-95"
-                      >
-                        Passer la publicité
-                      </button>
-                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={handleAdClick}
+                      className="bg-purple-600 hover:bg-purple-500 text-white py-1.5 px-4 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 animate-bounce"
+                    >
+                      Découvrir l'offre <ExternalLink className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {currentVideoUrl ? (
               <video 
@@ -718,7 +750,7 @@ export default function VideoDetail() {
                 controls 
                 autoPlay 
                 playsInline
-                loop={user?.type === 'entreprise'}
+                loop={false}
                 preload="auto"
                 onTimeUpdate={handleTimeUpdate}
                 onEnded={handleVideoEnded}

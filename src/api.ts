@@ -1,11 +1,111 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import crypto from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { supabase } from './lib/supabase';
 
 export const app = express();
 
 app.use(cors());
+
+// Webhook endpoint for Lemon Squeezy
+app.post('/api/webhook/lemonsqueezy', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['x-signature'] as string;
+  const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+
+  if (!signature) {
+    return res.status(400).send('Missing signature');
+  }
+
+  if (!secret) {
+    console.warn('LEMON_SQUEEZY_WEBHOOK_SECRET is not configured in environment variables');
+    // If not configured, we allow processing for development/testing but log a warning
+  } else {
+    // Verify HMAC-SHA256 signature
+    const hmac = crypto.createHmac('sha256', secret);
+    const digest = hmac.update(req.body).digest('hex');
+
+    if (signature !== digest) {
+      console.error('Lemon Squeezy Webhook signature verification failed');
+      return res.status(401).send('Invalid signature');
+    }
+  }
+
+  try {
+    const payload = JSON.parse(req.body.toString());
+    const eventName = payload.meta?.event_name;
+    const customData = payload.meta?.custom_data;
+
+    console.log('Received Lemon Squeezy Webhook:', eventName, customData);
+
+    if (!customData || !customData.user_id) {
+      console.warn('Lemon Squeezy Webhook received without user_id in custom data, skipping user activation');
+      return res.status(200).send('Webhook received (ignored - no user_id)');
+    }
+
+    const userId = customData.user_id;
+    const planId = customData.plan_id || 'starter';
+    const isAnnual = customData.is_annual === 'true';
+
+    // Handle subscription events
+    if (
+      eventName === 'subscription_created' ||
+      eventName === 'subscription_updated' ||
+      eventName === 'subscription_resumed'
+    ) {
+      const dataAttr = payload.data?.attributes;
+      const endsAt = dataAttr?.ends_at || dataAttr?.renews_at;
+      const lsSubscriptionId = payload.data?.id;
+
+      // Determine a reasonable end date if not specified
+      const endDate = endsAt 
+        ? new Date(endsAt).toISOString()
+        : new Date(Date.now() + (isAnnual ? 365 : 30) * 24 * 3600 * 1000).toISOString();
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          subscription_status: 'active',
+          subscription_plan: planId,
+          subscription_end_date: endDate,
+          is_annual: isAnnual,
+          paddle_subscription_id: lsSubscriptionId ? `ls_${lsSubscriptionId}` : undefined,
+          payment_method: JSON.stringify({ brand: 'card', last4: 'LS', expiryDate: 'LS' })
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Failed to update user subscription status in Supabase:', error);
+        return res.status(500).send('Database update error');
+      }
+
+      console.log(`Successfully activated Lemon Squeezy subscription for user ${userId}`);
+    } else if (
+      eventName === 'subscription_cancelled' ||
+      eventName === 'subscription_expired'
+    ) {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          subscription_status: 'canceled'
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Failed to cancel user subscription status in Supabase:', error);
+        return res.status(500).send('Database update error');
+      }
+
+      console.log(`Successfully cancelled Lemon Squeezy subscription for user ${userId}`);
+    }
+
+    res.status(200).send('Webhook processed');
+  } catch (error) {
+    console.error('Lemon Squeezy Webhook parsing/handling error:', error);
+    res.status(500).send('Webhook Error');
+  }
+});
 
 // Webhook endpoint for Paddle
 app.post('/api/webhook/paddle', express.raw({ type: 'application/json' }), (req, res) => {

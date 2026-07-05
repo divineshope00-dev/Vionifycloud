@@ -23,28 +23,50 @@ export default function Premium() {
     isAnnualRef.current = isAnnual;
   }, [isAnnual]);
 
-  // Paddle Configuration
+  // Paddle Configuration (Reserved for Particulier premium checks if any)
   const PADDLE_CLIENT_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 'live_2c53c004cf362eb28468635c95f';
   const PADDLE_ENV = import.meta.env.VITE_PADDLE_ENV || 'production';
+
+  // Lemon Squeezy checkout configurations for Enterprise (Entreprise)
+  const LEMON_SQUEEZY_CHECKOUTS = {
+    entreprise: {
+      starter: {
+        monthly: {
+          url: 'https://vionify.lemonsqueezy.com/checkout/buy/a6ac5252-7df8-4402-8ec8-c71b4c8f178f',
+          variantId: '1871322'
+        },
+        annual: {
+          url: 'https://vionify.lemonsqueezy.com/checkout/buy/d64d814b-2ad4-40ed-9ba4-37cc1cdf5cb4',
+          variantId: '1871335'
+        }
+      },
+      pro: {
+        monthly: {
+          url: 'https://vionify.lemonsqueezy.com/checkout/buy/16abd228-2ab8-44e3-b3c9-b20614e55ba6',
+          variantId: '1871341'
+        },
+        annual: {
+          url: 'https://vionify.lemonsqueezy.com/checkout/buy/a192f6a5-fcc9-440b-9a73-56a02b9602b3',
+          variantId: '1871348'
+        }
+      },
+      unlimited: {
+        monthly: {
+          url: 'https://vionify.lemonsqueezy.com/checkout/buy/3453c352-1a34-49f7-aace-ede5241ac1be',
+          variantId: '1871358'
+        },
+        annual: {
+          url: 'https://vionify.lemonsqueezy.com/checkout/buy/93533cdf-a56e-43a2-b72d-eb55bcd75947',
+          variantId: '1871361'
+        }
+      }
+    }
+  };
 
   const PRICE_IDS = {
     particulier: {
       monthly: import.meta.env.VITE_PADDLE_PRICE_PARTICULIER_MONTHLY || 'pri_01kkqan8kke83jnncrk7x7tb36',
       annual: import.meta.env.VITE_PADDLE_PRICE_PARTICULIER_ANNUAL || 'pri_01kkqaqcwcx6ypf9h581q99bzh'
-    },
-    entreprise: {
-      starter: {
-        monthly: import.meta.env.VITE_PADDLE_PRICE_ENTREPRISE_STARTER_MONTHLY || 'pri_01kkkp1t74558tvzr58mq2p5j7',
-        annual: import.meta.env.VITE_PADDLE_PRICE_ENTREPRISE_STARTER_ANNUAL || 'pri_01kkqa5721k0m6rh1d0tzxdh4s'
-      },
-      pro: {
-        monthly: import.meta.env.VITE_PADDLE_PRICE_ENTREPRISE_PRO_MONTHLY || 'pri_01kkqa92c4j6hrr0g8k7tm85y9',
-        annual: import.meta.env.VITE_PADDLE_PRICE_ENTREPRISE_PRO_ANNUAL || 'pri_01kkqab8fbadbxz25wkqjvahny'
-      },
-      unlimited: {
-        monthly: import.meta.env.VITE_PADDLE_PRICE_ENTREPRISE_UNLIMITED_MONTHLY || 'pri_01kkqadtqvcn3jpheqgrtpm6dn',
-        annual: import.meta.env.VITE_PADDLE_PRICE_ENTREPRISE_UNLIMITED_ANNUAL || 'pri_01kkqafj1xvf6a9dva99fyh1hy'
-      }
     }
   };
 
@@ -53,31 +75,34 @@ export default function Premium() {
   const hasActiveSubscription = user.subscriptionStatus === 'active';
 
   useEffect(() => {
-    initializePaddle({
-      environment: PADDLE_ENV,
-      token: PADDLE_CLIENT_TOKEN,
-      eventCallback: function(data: any) {
-        if (data.name === 'checkout.completed') {
-          if (planIdRef.current) {
-            // Extract payment method info if available
-            let paymentMethod;
-            const pm = data.data?.transaction?.details?.payment_method;
-            if (pm && pm.type === 'card') {
-              paymentMethod = {
-                last4: pm.card.last4,
-                brand: pm.card.brand,
-                expiryDate: `${pm.card.expiry_month}/${pm.card.expiry_year.toString().slice(-2)}`
-              };
+    // Only initialize Paddle if user is Particulier
+    if (user.type === 'particulier') {
+      initializePaddle({
+        environment: PADDLE_ENV,
+        token: PADDLE_CLIENT_TOKEN,
+        eventCallback: function(data: any) {
+          if (data.name === 'checkout.completed') {
+            if (planIdRef.current) {
+              // Extract payment method info if available
+              let paymentMethod;
+              const pm = data.data?.transaction?.details?.payment_method;
+              if (pm && pm.type === 'card') {
+                paymentMethod = {
+                  last4: pm.card.last4,
+                  brand: pm.card.brand,
+                  expiryDate: `${pm.card.expiry_month}/${pm.card.expiry_year.toString().slice(-2)}`
+                };
+              }
+              handlePaymentSuccess(planIdRef.current, paymentMethod);
             }
-            handlePaymentSuccess(planIdRef.current, paymentMethod);
           }
         }
-      }
-    }).then((paddleInstance) => {
-      if (paddleInstance) {
-        setPaddle(paddleInstance);
-      }
-    });
+      }).then((paddleInstance) => {
+        if (paddleInstance) {
+          setPaddle(paddleInstance);
+        }
+      });
+    }
   }, []);
 
   const handlePaymentSuccess = (planId: string, paymentMethod?: { last4: string; brand: string; expiryDate: string }) => {
@@ -104,8 +129,34 @@ export default function Premium() {
 
   const handleSubscribe = async (planId: string, priceId?: string) => {
     planIdRef.current = planId;
+
+    if (user.type === 'entreprise') {
+      setIsProcessing(true);
+      const planKey = planId as 'starter' | 'pro' | 'unlimited';
+      const billingKey = isAnnual ? 'annual' : 'monthly';
+      const checkoutData = LEMON_SQUEEZY_CHECKOUTS.entreprise[planKey][billingKey];
+
+      try {
+        const checkoutUrl = new URL(checkoutData.url);
+        // Lemon Squeezy checkout supports passing custom parameters that will be returned in webhook payloads
+        checkoutUrl.searchParams.set('checkout[email]', user.email);
+        checkoutUrl.searchParams.set('checkout[custom][user_id]', user.id);
+        checkoutUrl.searchParams.set('checkout[custom][plan_id]', planId);
+        checkoutUrl.searchParams.set('checkout[custom][is_annual]', isAnnual ? 'true' : 'false');
+        checkoutUrl.searchParams.set('checkout[custom][variant_id]', checkoutData.variantId);
+
+        window.open(checkoutUrl.toString(), '_blank');
+        alert("L'onglet de paiement Lemon Squeezy a été ouvert. Une fois votre paiement effectué, votre abonnement sera automatiquement activé.");
+      } catch (error) {
+        console.error("Failed to construct Lemon Squeezy URL:", error);
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
     if (!priceId) {
-      // Fallback to mock payment if no Paddle Price ID is configured
+      // Fallback to mock payment if no Paddle Price ID is configured (for Particulier only)
       setIsProcessing(true);
       await new Promise(resolve => setTimeout(resolve, 1500));
       handlePaymentSuccess(planId, { last4: '4242', brand: 'visa', expiryDate: '12/28' });
@@ -130,13 +181,10 @@ export default function Premium() {
 
   const isEntreprise = user.type === 'entreprise';
 
-  // Get Price IDs from configuration
+  // Get Price IDs from configuration (for Particulier only)
   const getPriceId = (type: 'entreprise' | 'particulier', isAnnual: boolean, planId?: string) => {
     if (type === 'particulier') {
       return isAnnual ? PRICE_IDS.particulier.annual : PRICE_IDS.particulier.monthly;
-    } else if (planId) {
-      const planPrices = PRICE_IDS.entreprise[planId as keyof typeof PRICE_IDS.entreprise];
-      return isAnnual ? planPrices.annual : planPrices.monthly;
     }
     return '';
   };
