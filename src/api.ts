@@ -117,30 +117,39 @@ apiRouter.post('/webhook/lemonsqueezy', express.raw({ type: 'application/json' }
       console.log("Étape 5.1 : Vérification de l'existence de l'utilisateur dans la table 'users' de Supabase...");
       const { data: existingUser, error: checkError } = await supabaseAdmin
         .from('users')
-        .select('id, email, subscription_status')
+        .select('id, email, name, type, onboarding_completed, subscription_status')
         .eq('id', userId)
         .maybeSingle();
 
       if (checkError) {
         console.error("Étape 5.2 - Erreur lors de la vérification de l'utilisateur :", checkError);
       } else if (!existingUser) {
-        console.warn(`Étape 5.2 - Avertissement : L'utilisateur avec l'ID ${userId} n'existe pas encore dans la table 'users' !`);
+        console.warn(`Étape 5.2 - Avertissement : L'utilisateur avec l'ID ${userId} n'existe pas encore dans la table 'users' ! Un profil sera créé via UPSERT.`);
       } else {
         console.log(`Étape 5.2 - Utilisateur trouvé : ${existingUser.email} (Status actuel: ${existingUser.subscription_status})`);
       }
 
-      console.log("Étape 6 : Exécution de la requête de mise à jour (UPDATE) de l'abonnement dans Supabase...");
+      console.log("Étape 6 : Exécution de la requête de mise à jour (UPSERT) de l'abonnement dans Supabase...");
+      const email = existingUser?.email || payload.data?.attributes?.user_email || 'user@example.com';
+      const name = existingUser?.name || payload.data?.attributes?.user_name || 'User';
+      const userType = existingUser?.type || 'entreprise';
+      const onboardingVal = existingUser?.onboarding_completed !== undefined ? existingUser.onboarding_completed : true;
+
       const { data: updatedData, error } = await supabaseAdmin
         .from('users')
-        .update({
+        .upsert({
+          id: userId,
+          email: email,
+          name: name,
+          type: userType,
+          onboarding_completed: onboardingVal,
           subscription_status: 'active',
           subscription_plan: planId,
           subscription_end_date: endDate,
           is_annual: isAnnual,
           paddle_subscription_id: lsSubscriptionId ? `ls_${lsSubscriptionId}` : null,
           payment_method: JSON.stringify({ brand: 'card', last4: 'LS', expiryDate: 'LS' })
-        })
-        .eq('id', userId)
+        }, { onConflict: 'id' })
         .select();
 
       if (error) {

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User } from '../services/supabaseService';
+import { User, db } from '../services/supabaseService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { canAccessContent } from '../utils/subscription';
 import PremiumIcon from './PremiumIcon';
@@ -14,7 +14,9 @@ interface SubscriptionGuardProps {
 
 export default function SubscriptionGuard({ user, children }: SubscriptionGuardProps) {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkStatus, setCheckStatus] = useState<'idle' | 'success' | 'failed'>('idle');
 
   // Determine if Video IA sub is active
   const aiQuotaItem = localStorage.getItem(`vionify_ai_quota_${user.id}`);
@@ -24,6 +26,33 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
   if (canAccessContent(user) || hasAiSub) {
     return <>{children}</>;
   }
+
+  const handleManualCheck = async () => {
+    if (isChecking) return;
+    setIsChecking(true);
+    setCheckStatus('idle');
+
+    try {
+      const freshUser = await db.getUser(user.id);
+      if (freshUser) {
+        if (canAccessContent(freshUser)) {
+          localStorage.setItem('vionify_user', JSON.stringify(freshUser));
+          setCheckStatus('success');
+          // Dispatch event to notify layout & route guards
+          window.dispatchEvent(new Event('user-changed'));
+          return;
+        }
+      }
+      // Wait a moment for UX feeling of loading state
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      setCheckStatus('failed');
+    } catch (error) {
+      console.error('Error verifying activation:', error);
+      setCheckStatus('failed');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   return (
       <AnimatePresence>
@@ -57,6 +86,48 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
               <PremiumIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
               <span className="text-base">{t('subscription.guard.button')}</span>
             </button>
+
+            {/* Manual Check Button */}
+            <button
+              onClick={handleManualCheck}
+              disabled={isChecking}
+              className={`w-full mt-3 py-3 rounded-2xl border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                isChecking 
+                  ? 'border-zinc-800 bg-zinc-800/20 text-zinc-500 cursor-not-allowed' 
+                  : checkStatus === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950 hover:bg-zinc-900/50 text-zinc-400 hover:text-white active:scale-98'
+              }`}
+            >
+              {isChecking ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>{language === 'fr' ? 'Vérification en cours...' : 'Verifying...'}</span>
+                </>
+              ) : checkStatus === 'success' ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>{language === 'fr' ? 'Abonnement activé !' : 'Subscription activated!'}</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>
+                    {language === 'fr' 
+                      ? "J'ai payé, vérifier mon statut" 
+                      : "I paid, verify my status"
+                    }
+                  </span>
+                </>
+              )}
+            </button>
+            {checkStatus === 'failed' && (
+              <p className="text-xs text-red-400/80 mt-2">
+                {language === 'fr'
+                  ? "Paiement non détecté. Veuillez patienter quelques instants ou réessayer."
+                  : "Payment not detected yet. Please wait a moment and try again."}
+              </p>
+            )}
           </div>
         </motion.div>
       </AnimatePresence>

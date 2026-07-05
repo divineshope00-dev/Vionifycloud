@@ -420,7 +420,7 @@ const FeedVideo: React.FC<{
         <div className="absolute bottom-10 right-2 flex -space-x-4 hover:space-x-1 transition-all duration-300 z-10">
           {video.products.slice(0, 4).map((product, idx) => (
             <div 
-              key={product.id || idx}
+              key={`${product.id || 'prod'}-${idx}`}
               className="w-10 h-10 rounded-lg border-2 border-white/20 shadow-xl overflow-hidden bg-zinc-900 transition-transform hover:scale-110 hover:-translate-y-1 cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1182,7 +1182,7 @@ export default function Home() {
                       : product.price;
                     
                     return (
-                      <div key={`${product.id}-${index}`} className="shrink-0 w-28 snap-start group/product">
+                      <div key={`${product.id || 'prod'}-${index}`} className="shrink-0 w-28 snap-start group/product">
                         <a 
                           href={product.link}
                           target="_blank"
@@ -1553,7 +1553,7 @@ export default function Home() {
 
                 <div className="space-y-4">
                   {editProducts.map((product, index) => (
-                    <div key={product.id} className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 relative">
+                    <div key={`${product.id || 'edit-prod'}-${index}`} className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 relative">
                       <button
                         type="button"
                         onClick={() => handleEditRemoveProduct(product.id)}

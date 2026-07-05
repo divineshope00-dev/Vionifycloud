@@ -85,11 +85,11 @@ export default function Statistics() {
 
         <h2 className="text-lg font-bold mt-8 mb-4">{t('statistics.details')}</h2>
         <div className="space-y-4">
-          {videos.map(video => {
+          {videos.map((video, index) => {
             const totalVideoClicks = (video.clicks || 0) + (video.products?.reduce((acc, p) => acc + (p.clicks || 0), 0) || 0);
             
             return (
-              <div key={video.id} className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-4">
+              <div key={`${video.id || 'vid'}-${index}`} className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-4">
                 <div className="flex gap-4 items-center">
                   <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
                     {video.videoUrl ? (
@@ -140,7 +140,7 @@ export default function Statistics() {
                       {t('statistics.performance')}
                     </h4>
                     <div className="grid grid-cols-1 gap-3">
-                      {video.products.map(product => {
+                      {video.products.map((product, idx) => {
                         const productClicks = product.clicks || 0;
                         const totalProductsClicks = video.products?.reduce((acc, p) => acc + (p.clicks || 0), 0) || 0;
                         const percentage = totalProductsClicks > 0 
@@ -148,7 +148,7 @@ export default function Statistics() {
                           : 0;
 
                         return (
-                          <div key={product.id} className="flex items-center gap-3 bg-black/30 p-2 rounded-lg border border-zinc-800/50">
+                          <div key={`${product.id || 'prod'}-${idx}`} className="flex items-center gap-3 bg-black/30 p-2 rounded-lg border border-zinc-800/50">
                             <div className="w-10 h-10 rounded bg-zinc-800 overflow-hidden shrink-0">
                                <img 
                                  src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'} 

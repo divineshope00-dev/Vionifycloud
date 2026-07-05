@@ -42,7 +42,18 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Helper component for protected routes with subscription check
 const ProtectedRoute = ({ children, requireSubscription = false }: { children: React.ReactNode, requireSubscription?: boolean }) => {
-  const user = db.getCurrentUser();
+  const [user, setUser] = useState(db.getCurrentUser());
+
+  useEffect(() => {
+    const handleUserChange = () => {
+      setUser(db.getCurrentUser());
+    };
+    window.addEventListener('user-changed', handleUserChange);
+    return () => {
+      window.removeEventListener('user-changed', handleUserChange);
+    };
+  }, []);
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }

@@ -141,6 +141,13 @@ export default function MainLayout() {
     };
 
     syncUserProfile();
+
+    // Set up polling interval of 6 seconds to automatically detect subscription updates (webhooks)
+    const intervalId = setInterval(syncUserProfile, 6000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [location.pathname]);
 
   useEffect(() => {

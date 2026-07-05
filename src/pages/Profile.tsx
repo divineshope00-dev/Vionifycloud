@@ -215,8 +215,8 @@ export default function Profile() {
                     Terminé
                   </button>
                 ) : (
-                  <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium cursor-default">
-                    En cours
+                  <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium cursor-default">
+                    {t('profile.active')}
                   </span>
                 )}
               </div>

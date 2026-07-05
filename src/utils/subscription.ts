@@ -39,7 +39,7 @@ export const canAccessContent = (user: User) => {
   
   // Entreprise users need active trial or active subscription
   const trialActive = !isTrialExpired(user);
-  const subscriptionActive = user.subscriptionStatus === 'active' && !isSubscriptionExpired(user);
+  const subscriptionActive = user.subscriptionStatus === 'active';
   
   return trialActive || subscriptionActive;
 };

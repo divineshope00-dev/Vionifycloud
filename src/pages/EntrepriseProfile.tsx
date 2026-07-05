@@ -285,13 +285,13 @@ export default function EntrepriseProfile() {
                 </button>
   
                 <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x pt-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {video.products.map((product) => {
+                  {video.products.map((product, idx) => {
                     const finalPrice = product.discount 
                       ? product.price * (1 - product.discount / 100) 
                       : product.price;
                     
                     return (
-                      <div key={product.id} className="shrink-0 w-28 snap-start group/product">
+                      <div key={`${product.id || 'prod'}-${idx}`} className="shrink-0 w-28 snap-start group/product">
                         <a 
                           href={product.link}
                           target="_blank"

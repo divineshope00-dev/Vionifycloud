@@ -495,9 +495,14 @@ export const db = {
           console.warn('User profile not found after login, attempting to create it...');
           // Recreate profile from auth metadata
           const metadata = authData.user.user_metadata;
+          const userType = metadata?.type || 'particulier';
           const now = new Date();
           const trialEnds = new Date(now);
-          trialEnds.setDate(trialEnds.getDate() + 3);
+          if (userType === 'particulier') {
+            trialEnds.setMonth(now.getMonth() + 3);
+          } else {
+            trialEnds.setDate(now.getDate() + 7);
+          }
 
           const { data: newProfile, error: insertError } = await safeRequest(supabase
             .from('users')
@@ -505,7 +510,7 @@ export const db = {
               id: authData.user.id,
               email: authData.user.email || email,
               name: metadata?.name || 'User',
-              type: metadata?.type || 'particulier',
+              type: userType,
               country: metadata?.country || '',
               trial_start_date: now.toISOString(),
               trial_ends_at: trialEnds.toISOString(),
@@ -520,7 +525,7 @@ export const db = {
               id: authData.user.id,
               email: authData.user.email || email,
               name: metadata?.name || 'User',
-              type: metadata?.type || 'particulier',
+              type: userType,
               country: metadata?.country || '',
               trialStartDate: now.toISOString(),
               trialEndsAt: trialEnds.toISOString(),

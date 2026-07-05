@@ -784,7 +784,7 @@ export default function VideoDetail() {
               <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 pointer-events-none group-hover:pointer-events-auto transition-opacity opacity-0 group-hover:opacity-100">
                 {video.products.slice(0, 4).map((product, idx) => (
                   <a 
-                    key={product.id || idx}
+                    key={`${product.id || 'prod'}-${idx}`}
                     href={product.link}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -839,9 +839,9 @@ export default function VideoDetail() {
             </button>
 
             <div className="carousel-content flex overflow-x-auto gap-4 scrollbar-hide snap-x px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {video.products.map((product) => {
+              {video.products.map((product, idx) => {
                 return (
-                  <div key={product.id} className="shrink-0 w-32 md:w-40 snap-start group/product relative">
+                  <div key={`${product.id || 'prod'}-${idx}`} className="shrink-0 w-32 md:w-40 snap-start group/product relative">
                     {/* Product Share Button */}
                     <button
                       onClick={(e) => {
@@ -1202,13 +1202,13 @@ export default function VideoDetail() {
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {recommendedProducts.map((product) => {
+              {recommendedProducts.map((product, idx) => {
                 const finalPrice = product.discount 
                   ? product.price * (1 - product.discount / 100) 
                   : product.price;
 
                 return (
-                  <div key={product.id} className="group flex flex-col gap-2">
+                  <div key={`${product.id || 'prod'}-${idx}`} className="group flex flex-col gap-2">
                     <a 
                       href={product.link}
                       target="_blank"
