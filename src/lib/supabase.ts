@@ -2,9 +2,26 @@ import { createClient } from '@supabase/supabase-js';
 
 const getEnv = (key: string): string => {
   try {
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key] as string;
+    // 1. Try to access via window if on browser
+    if (typeof window !== 'undefined' && (window as any).process?.env?.[key]) {
+      return (window as any).process.env[key];
     }
+    
+    // 2. Try direct process.env via dynamic property to bypass static analyzer inlining
+    const envObj = typeof process !== 'undefined' ? process.env : null;
+    if (envObj && envObj[key]) {
+      return envObj[key] as string;
+    }
+    
+    // 3. Try globalThis.process.env
+    const globalProcessEnv = (typeof globalThis !== 'undefined' && (globalThis as any).process) 
+      ? (globalThis as any).process.env 
+      : null;
+    if (globalProcessEnv && globalProcessEnv[key]) {
+      return globalProcessEnv[key] as string;
+    }
+
+    // 4. Try import.meta.env
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
       // @ts-ignore
@@ -16,7 +33,7 @@ const getEnv = (key: string): string => {
   return '';
 };
 
-const rawUrl = getEnv('VITE_SUPABASE_URL') || 'https://vlrddnnhwtybwhciqkvv.supabase.co';
+const rawUrl = getEnv('VITE_SUPABASE_URL') || getEnv('SUPABASE_URL') || 'https://vlrddnnhwtybwhciqkvv.supabase.co';
 
 const getSupabaseUrl = (url: string) => {
   if (url.startsWith('http')) return url;
@@ -40,6 +57,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 const serviceRoleKey = getEnv('SUPABASE_SERVICE_ROLE_KEY') || getEnv('VITE_SUPABASE_SERVICE_ROLE_KEY') || getEnv('SERVICE_ROLE_KEY');
+
+// Add server-side console logs to verify key detection on serverless platforms
+if (typeof window === 'undefined') {
+  console.log('[Supabase Initialization] Server environment detected');
+  console.log('[Supabase Initialization] URL resolved to:', supabaseUrl);
+  if (serviceRoleKey) {
+    console.log('[Supabase Initialization] SUCCESS: SUPABASE_SERVICE_ROLE_KEY detected! Admin client will bypass RLS.');
+  } else {
+    console.warn('[Supabase Initialization] WARNING: No SUPABASE_SERVICE_ROLE_KEY found in server environment! Falling back to anonymous key. Check your environment variables.');
+  }
+}
 
 export const supabaseAdmin = serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey, {

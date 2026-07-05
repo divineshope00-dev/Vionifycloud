@@ -127,11 +127,10 @@ export default function Premium() {
     navigate('/app/home');
   };
 
-  const handleSubscribe = async (planId: string, priceId?: string) => {
+  const handleSubscribe = (planId: string, priceId?: string) => {
     planIdRef.current = planId;
 
     if (user.type === 'entreprise') {
-      setIsProcessing(true);
       const planKey = planId as 'starter' | 'pro' | 'unlimited';
       const billingKey = isAnnual ? 'annual' : 'monthly';
       const checkoutData = LEMON_SQUEEZY_CHECKOUTS.entreprise[planKey][billingKey];
@@ -152,12 +151,10 @@ export default function Premium() {
         checkoutUrl.searchParams.set('checkout[custom_data][is_annual]', isAnnual ? 'true' : 'false');
         checkoutUrl.searchParams.set('checkout[custom_data][variant_id]', checkoutData.variantId);
 
-        window.open(checkoutUrl.toString(), '_blank');
-        alert("L'onglet de paiement Lemon Squeezy a été ouvert. Une fois votre paiement effectué, votre abonnement sera automatiquement activé.");
+        // Instant redirect bypasses any iOS thread delays or popup blockers
+        window.location.assign(checkoutUrl.toString());
       } catch (error) {
         console.error("Failed to construct Lemon Squeezy URL:", error);
-      } finally {
-        setIsProcessing(false);
       }
       return;
     }
@@ -165,9 +162,10 @@ export default function Premium() {
     if (!priceId) {
       // Fallback to mock payment if no Paddle Price ID is configured (for Particulier only)
       setIsProcessing(true);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      handlePaymentSuccess(planId, { last4: '4242', brand: 'visa', expiryDate: '12/28' });
-      setIsProcessing(false);
+      setTimeout(() => {
+        handlePaymentSuccess(planId, { last4: '4242', brand: 'visa', expiryDate: '12/28' });
+        setIsProcessing(false);
+      }, 1500);
       return;
     }
 

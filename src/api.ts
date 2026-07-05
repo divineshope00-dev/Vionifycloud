@@ -240,68 +240,6 @@ apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Endpoint to simulate activation securely from the backend (bypassing client-side RLS rules)
-apiRouter.post('/simulate-activation', async (req, res) => {
-  const { userId, planId, isAnnual } = req.body;
-  if (!userId) {
-    return res.status(400).json({ error: 'userId is required' });
-  }
-
-  try {
-    const isAnnVal = isAnnual === 'true' || isAnnual === true;
-    const planVal = planId || 'unlimited';
-    const durationDays = isAnnVal ? 365 : 30;
-    const endDate = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
-
-    console.log(`[Simulate Activation] Activating for user ${userId}: plan=${planVal}, annual=${isAnnVal}, endDate=${endDate}`);
-
-    // Check if user exists in public.users first
-    const { data: existingUser, error: checkError } = await supabaseAdmin
-      .from('users')
-      .select('id, email, name, type, onboarding_completed')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error('[Simulate Activation] Error fetching user profile:', checkError);
-    }
-
-    const email = existingUser?.email || 'user@example.com';
-    const name = existingUser?.name || 'Utilisateur';
-    const userType = existingUser?.type || 'entreprise';
-    const onboardingVal = existingUser?.onboarding_completed !== undefined ? existingUser.onboarding_completed : true;
-
-    // Use upsert to create or update profile with full subscription data
-    const { data: updatedData, error } = await supabaseAdmin
-      .from('users')
-      .upsert({
-        id: userId,
-        email: email,
-        name: name,
-        type: userType,
-        onboarding_completed: onboardingVal,
-        subscription_status: 'active',
-        subscription_plan: planVal,
-        subscription_end_date: endDate,
-        is_annual: isAnnVal,
-        paddle_subscription_id: `ls_simulated_${Math.random().toString(36).substring(2, 10)}`,
-        payment_method: JSON.stringify({ brand: 'Visa', last4: '4242', expiryDate: '12/28' })
-      }, { onConflict: 'id' })
-      .select();
-
-    if (error) {
-      console.error('[Simulate Activation] Database error during upsert:', error);
-      return res.status(500).json({ error: 'Database update failed', details: error });
-    }
-
-    console.log('[Simulate Activation] Success! Database updated row:', updatedData?.[0]);
-    return res.json({ success: true, user: updatedData?.[0] });
-  } catch (error: any) {
-    console.error('[Simulate Activation] Server exception:', error);
-    return res.status(500).json({ error: error.message || String(error) });
-  }
-});
-
 // Video generation routes (mocking for now as per previous server.ts logic)
 apiRouter.post('/moderate-video', async (req, res) => {
   console.log('Moderating video:', req.body.videoId);

@@ -26,6 +26,7 @@ export const translations = {
     'nav.premium': 'Premium',
     'nav.club': 'Club',
     'nav.search': 'Recherche',
+    'nav.statistics': 'Statistiques',
     
     // Home
     'home.title.entreprise': 'Mes Vidéos',
@@ -499,6 +500,7 @@ export const translations = {
     'nav.premium': 'Premium',
     'nav.club': 'Club',
     'nav.search': 'Search',
+    'nav.statistics': 'Statistics',
     
     // Home
     'home.title.entreprise': 'My Videos',

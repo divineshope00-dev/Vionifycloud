@@ -221,7 +221,14 @@ const mapUser = (data: any): User => ({
     endDate: data.subscription_end_date,
     isAnnual: data.is_annual,
     paddleSubscriptionId: data.paddle_subscription_id,
-    paymentMethod: data.payment_method ? JSON.parse(data.payment_method) : undefined
+    paymentMethod: (() => {
+      if (!data.payment_method) return undefined;
+      try {
+        return typeof data.payment_method === 'string' ? JSON.parse(data.payment_method) : data.payment_method;
+      } catch (e) {
+        return { brand: 'card', last4: 'LS', expiryDate: 'LS' };
+      }
+    })()
   } : undefined,
   preferredCategories: data.preferred_categories || {},
   onboardingCompleted: data.onboarding_completed || false,
