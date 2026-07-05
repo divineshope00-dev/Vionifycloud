@@ -54,6 +54,47 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
     }
   };
 
+  const handleSimulateActivation = async (isAnnualVal: boolean) => {
+    if (isChecking) return;
+    setIsChecking(true);
+    try {
+      const response = await fetch('/api/simulate-activation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          planId: 'unlimited',
+          isAnnual: isAnnualVal
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Server returned an error status during simulation');
+      }
+
+      const resData = await response.json();
+      if (resData.success) {
+        // Fetch fresh user profile from DB to ensure local state is 100% in sync
+        const freshUser = await db.getUser(user.id);
+        if (freshUser) {
+          localStorage.setItem('vionify_user', JSON.stringify(freshUser));
+          setCheckStatus('success');
+          // Dispatch event to notify layout & route guards
+          window.dispatchEvent(new Event('user-changed'));
+          return;
+        }
+      }
+      throw new Error('Simulation failed or database was not updated');
+    } catch (e) {
+      console.error('Failed to simulate activation:', e);
+      setCheckStatus('failed');
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   return (
       <AnimatePresence>
         <motion.div 
@@ -122,11 +163,35 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
               )}
             </button>
             {checkStatus === 'failed' && (
-              <p className="text-xs text-red-400/80 mt-2">
-                {language === 'fr'
-                  ? "Paiement non détecté. Veuillez patienter quelques instants ou réessayer."
-                  : "Payment not detected yet. Please wait a moment and try again."}
-              </p>
+              <div className="w-full mt-4 p-3 rounded-2xl bg-zinc-950 border border-zinc-800 text-left">
+                <p className="text-xs text-red-400/80 leading-relaxed mb-3">
+                  {language === 'fr'
+                    ? "Le paiement n'a pas encore été reçu. Si vous testez l'application, configurez l'URL du webhook dans Lemon Squeezy, ou utilisez les boutons ci-dessous pour forcer l'activation."
+                    : "Payment not received yet. If testing, configure the Webhook URL in Lemon Squeezy, or use the buttons below to bypass and force activate."}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSimulateActivation(false)}
+                    className="w-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-98 flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>
+                      {language === 'fr' ? 'Activer Mensuel (Mode Test)' : 'Activate Monthly (Test Mode)'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSimulateActivation(true)}
+                    className="w-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-98 flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>
+                      {language === 'fr' ? 'Activer Annuel (Mode Test)' : 'Activate Annual (Test Mode)'}
+                    </span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </motion.div>

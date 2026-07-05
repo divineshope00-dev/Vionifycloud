@@ -139,11 +139,18 @@ export default function Premium() {
       try {
         const checkoutUrl = new URL(checkoutData.url);
         // Lemon Squeezy checkout supports passing custom parameters that will be returned in webhook payloads
+        // We set both checkout[custom] and checkout[custom_data] namespaces for maximum resilience and safety
         checkoutUrl.searchParams.set('checkout[email]', user.email);
+        
         checkoutUrl.searchParams.set('checkout[custom][user_id]', user.id);
         checkoutUrl.searchParams.set('checkout[custom][plan_id]', planId);
         checkoutUrl.searchParams.set('checkout[custom][is_annual]', isAnnual ? 'true' : 'false');
         checkoutUrl.searchParams.set('checkout[custom][variant_id]', checkoutData.variantId);
+
+        checkoutUrl.searchParams.set('checkout[custom_data][user_id]', user.id);
+        checkoutUrl.searchParams.set('checkout[custom_data][plan_id]', planId);
+        checkoutUrl.searchParams.set('checkout[custom_data][is_annual]', isAnnual ? 'true' : 'false');
+        checkoutUrl.searchParams.set('checkout[custom_data][variant_id]', checkoutData.variantId);
 
         window.open(checkoutUrl.toString(), '_blank');
         alert("L'onglet de paiement Lemon Squeezy a été ouvert. Une fois votre paiement effectué, votre abonnement sera automatiquement activé.");
