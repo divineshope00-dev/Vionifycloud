@@ -115,6 +115,34 @@ export default function MainLayout() {
     };
   }, [navigate, location.pathname, location.search]);
 
+  // Sync user profile in background on navigation/mount to catch webhook updates
+  useEffect(() => {
+    const syncUserProfile = async () => {
+      const currentUser = db.getCurrentUser();
+      if (currentUser && !currentUser.isGuest) {
+        try {
+          const freshUser = await db.getUser(currentUser.id);
+          if (freshUser) {
+            const statusChanged = freshUser.subscriptionStatus !== currentUser.subscriptionStatus;
+            const planChanged = freshUser.subscription?.plan !== currentUser.subscription?.plan;
+            const endDateChanged = freshUser.subscription?.endDate !== currentUser.subscription?.endDate;
+            const onboardingChanged = freshUser.onboardingCompleted !== currentUser.onboardingCompleted;
+
+            if (statusChanged || planChanged || endDateChanged || onboardingChanged) {
+              console.log('Background Sync: User subscription/onboarding updated from database. Refreshing state.');
+              localStorage.setItem('vionify_user', JSON.stringify(freshUser));
+              window.dispatchEvent(new Event('user-changed'));
+            }
+          }
+        } catch (error) {
+          console.error('Error syncing user profile in background:', error);
+        }
+      }
+    };
+
+    syncUserProfile();
+  }, [location.pathname]);
+
   useEffect(() => {
     if (user?.isGuest) {
       if (location.pathname === '/app/club') {
