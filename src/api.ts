@@ -9,13 +9,28 @@ export const app = express();
 
 app.use(cors());
 
-// Webhook endpoint for Lemon Squeezy
-app.post('/api/webhook/lemonsqueezy', express.raw({ type: 'application/json' }), async (req, res) => {
+// Define a unified router for all API endpoints
+const apiRouter = express.Router();
+
+// Webhook endpoint for Lemon Squeezy (registered BEFORE JSON body parser)
+apiRouter.post('/webhook/lemonsqueezy', express.raw({ type: 'application/json' }), async (req, res) => {
   const signature = req.headers['x-signature'] as string;
   const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
 
   if (!signature) {
     return res.status(400).send('Missing signature');
+  }
+
+  // Resilient raw body extraction (compatible with Netlify serverless & standard express environments)
+  let rawBody: Buffer;
+  if ((req as any).rawBody) {
+    rawBody = (req as any).rawBody;
+  } else if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body;
+  } else if (typeof req.body === 'string') {
+    rawBody = Buffer.from(req.body);
+  } else {
+    rawBody = Buffer.from(JSON.stringify(req.body || {}));
   }
 
   if (!secret) {
@@ -24,7 +39,7 @@ app.post('/api/webhook/lemonsqueezy', express.raw({ type: 'application/json' }),
   } else {
     // Verify HMAC-SHA256 signature
     const hmac = crypto.createHmac('sha256', secret);
-    const digest = hmac.update(req.body).digest('hex');
+    const digest = hmac.update(rawBody).digest('hex');
 
     if (signature !== digest) {
       console.error('Lemon Squeezy Webhook signature verification failed');
@@ -33,7 +48,7 @@ app.post('/api/webhook/lemonsqueezy', express.raw({ type: 'application/json' }),
   }
 
   try {
-    const payload = JSON.parse(req.body.toString());
+    const payload = JSON.parse(rawBody.toString());
     const eventName = payload.meta?.event_name;
     const customData = payload.meta?.custom_data;
 
@@ -108,7 +123,7 @@ app.post('/api/webhook/lemonsqueezy', express.raw({ type: 'application/json' }),
 });
 
 // Webhook endpoint for Paddle
-app.post('/api/webhook/paddle', express.raw({ type: 'application/json' }), (req, res) => {
+apiRouter.post('/webhook/paddle', express.raw({ type: 'application/json' }), (req, res) => {
   const signature = req.headers['paddle-signature'];
   const secret = process.env.PADDLE_WEBHOOK_SECRET;
 
@@ -117,7 +132,8 @@ app.post('/api/webhook/paddle', express.raw({ type: 'application/json' }), (req,
   }
 
   try {
-    const payload = JSON.parse(req.body.toString());
+    const rawBody = (req as any).rawBody || req.body;
+    const payload = JSON.parse(rawBody.toString());
     console.log('Received Paddle Webhook:', payload.event_type);
 
     switch (payload.event_type) {
@@ -139,20 +155,20 @@ app.post('/api/webhook/paddle', express.raw({ type: 'application/json' }), (req,
   }
 });
 
-// API routes
-app.use(express.json());
-app.get('/api/health', (req, res) => {
+// Parse JSON body for all standard API endpoints (registered AFTER raw body webhooks)
+apiRouter.use(express.json());
+
+apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
 // Video generation routes (mocking for now as per previous server.ts logic)
-app.post('/api/moderate-video', async (req, res) => {
-  // Dummy moderation endpoint
+apiRouter.post('/moderate-video', async (req, res) => {
   console.log('Moderating video:', req.body.videoId);
   res.json({ status: 'pending' });
 });
 
-app.post('/api/video-ia', async (req, res) => {
+apiRouter.post('/video-ia', async (req, res) => {
   try {
     const { image, prompt } = req.body;
     if (!image || !prompt) {
@@ -180,7 +196,7 @@ app.post('/api/video-ia', async (req, res) => {
   }
 });
 
-app.get('/api/video-ia-status/:id', async (req, res) => {
+apiRouter.get('/video-ia-status/:id', async (req, res) => {
   try {
     const apiKey = process.env.RUNWAYML_API_KEY;
     if (!apiKey) throw new Error('RUNWAYML_API_KEY not configured');
@@ -205,3 +221,7 @@ app.get('/api/video-ia-status/:id', async (req, res) => {
     res.status(500).json({ error: error.message || 'Error fetching status' });
   }
 });
+
+// Mount the unified apiRouter under both /api and / to prevent path mismatches
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
