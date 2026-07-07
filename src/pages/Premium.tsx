@@ -32,32 +32,32 @@ export default function Premium() {
     entreprise: {
       starter: {
         monthly: {
-          url: 'https://vionify.lemonsqueezy.com/checkout/buy/a6ac5252-7df8-4402-8ec8-c71b4c8f178f',
-          variantId: '1871322'
+          url: 'https://vionifys.lemonsqueezy.com/checkout/buy/a15abb02-8f80-4f0b-85c0-04a93ca08ff4',
+          variantId: '1879263'
         },
         annual: {
-          url: 'https://vionify.lemonsqueezy.com/checkout/buy/d64d814b-2ad4-40ed-9ba4-37cc1cdf5cb4',
-          variantId: '1871335'
+          url: 'https://vionifys.lemonsqueezy.com/checkout/buy/4b90db00-a734-4bb8-b7cc-fc9d6faf1a27',
+          variantId: '1879332'
         }
       },
       pro: {
         monthly: {
-          url: 'https://vionify.lemonsqueezy.com/checkout/buy/16abd228-2ab8-44e3-b3c9-b20614e55ba6',
-          variantId: '1871341'
+          url: 'https://vionifys.lemonsqueezy.com/checkout/buy/cf527768-332a-4557-9a3b-b08b814a01cb',
+          variantId: '1879348'
         },
         annual: {
-          url: 'https://vionify.lemonsqueezy.com/checkout/buy/a192f6a5-fcc9-440b-9a73-56a02b9602b3',
-          variantId: '1871348'
+          url: 'https://vionifys.lemonsqueezy.com/checkout/buy/7ef48dfd-ebd8-4652-87d8-e42fc0df2bd0',
+          variantId: '1879358'
         }
       },
       unlimited: {
         monthly: {
-          url: 'https://vionify.lemonsqueezy.com/checkout/buy/3453c352-1a34-49f7-aace-ede5241ac1be',
-          variantId: '1871358'
+          url: 'https://vionifys.lemonsqueezy.com/checkout/buy/14d4af75-65ab-48b0-ad1c-52596b19f028',
+          variantId: '1879372'
         },
         annual: {
-          url: 'https://vionify.lemonsqueezy.com/checkout/buy/93533cdf-a56e-43a2-b72d-eb55bcd75947',
-          variantId: '1871361'
+          url: 'https://vionifys.lemonsqueezy.com/checkout/buy/85896ed2-9780-4691-826d-465ae04910c0',
+          variantId: '1879377'
         }
       }
     }

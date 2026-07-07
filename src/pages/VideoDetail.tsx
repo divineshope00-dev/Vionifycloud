@@ -111,6 +111,11 @@ export default function VideoDetail() {
 
   const adProgress = adDuration > 0 ? (adCurrentTime / adDuration) * 100 : 0;
 
+  const handleAdVideoError = () => {
+    console.warn("[AdPlayer] Video ad failed to play/load.");
+    setShowAd(false);
+  };
+
   const VIDEO_ADS = [
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",

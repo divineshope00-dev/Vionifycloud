@@ -14,12 +14,12 @@ const apiRouter = express.Router();
 
 // Lemon Squeezy variant to plan & period mappings for maximum reliability
 const VARIANT_MAPPING: Record<string, { plan: string; isAnnual: boolean }> = {
-  '1871322': { plan: 'starter', isAnnual: false },   // Starter Monthly
-  '1871335': { plan: 'starter', isAnnual: true },    // Starter Annual
-  '1871341': { plan: 'pro', isAnnual: false },       // Pro Monthly
-  '1871348': { plan: 'pro', isAnnual: true },        // Pro Annual
-  '1871358': { plan: 'unlimited', isAnnual: false }, // Unlimited Monthly
-  '1871361': { plan: 'unlimited', isAnnual: true }   // Unlimited Annual
+  '1879263': { plan: 'starter', isAnnual: false },   // Starter Monthly
+  '1879332': { plan: 'starter', isAnnual: true },    // Starter Annual
+  '1879348': { plan: 'pro', isAnnual: false },       // Pro Monthly
+  '1879358': { plan: 'pro', isAnnual: true },        // Pro Annual
+  '1879372': { plan: 'unlimited', isAnnual: false }, // Unlimited Monthly
+  '1879377': { plan: 'unlimited', isAnnual: true }   // Unlimited Annual
 };
 
 // Webhook endpoint for Lemon Squeezy (registered BEFORE JSON body parser)
