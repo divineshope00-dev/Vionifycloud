@@ -153,8 +153,16 @@ export default function Premium() {
 
         const finalCheckoutUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.join('&');
 
-        // Instant redirect bypasses any iOS thread delays or popup blockers
-        window.location.assign(finalCheckoutUrl);
+        // We use a dynamically created anchor link with target="_blank" and rel="noopener noreferrer"
+        // to force the iOS standalone PWA to open the checkout URL in the default system browser (Safari/Chrome)
+        // instead of opening inside the PWA container or an in-app WebSheet where app menus remain visible.
+        const externalLink = document.createElement('a');
+        externalLink.href = finalCheckoutUrl;
+        externalLink.target = '_blank';
+        externalLink.rel = 'noopener noreferrer';
+        document.body.appendChild(externalLink);
+        externalLink.click();
+        document.body.removeChild(externalLink);
       } catch (error) {
         console.error("Failed to construct Lemon Squeezy URL:", error);
       }

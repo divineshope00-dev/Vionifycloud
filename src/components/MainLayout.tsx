@@ -248,7 +248,7 @@ export default function MainLayout() {
   ];
 
   return (
-    <div className="h-[100dvh] bg-black text-white flex flex-col overflow-hidden select-none">
+    <div className="fixed inset-0 bg-black text-white flex flex-col overflow-hidden select-none">
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-24 md:pb-32 overscroll-none scroll-smooth">
         <div className="max-w-[2000px] mx-auto min-h-full">
