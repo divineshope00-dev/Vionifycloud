@@ -136,23 +136,25 @@ export default function Premium() {
       const checkoutData = LEMON_SQUEEZY_CHECKOUTS.entreprise[planKey][billingKey];
 
       try {
-        const checkoutUrl = new URL(checkoutData.url);
-        // Lemon Squeezy checkout supports passing custom parameters that will be returned in webhook payloads
-        // We set both checkout[custom] and checkout[custom_data] namespaces for maximum resilience and safety
-        checkoutUrl.searchParams.set('checkout[email]', user.email);
-        
-        checkoutUrl.searchParams.set('checkout[custom][user_id]', user.id);
-        checkoutUrl.searchParams.set('checkout[custom][plan_id]', planId);
-        checkoutUrl.searchParams.set('checkout[custom][is_annual]', isAnnual ? 'true' : 'false');
-        checkoutUrl.searchParams.set('checkout[custom][variant_id]', checkoutData.variantId);
+        const baseUrl = checkoutData.url;
 
-        checkoutUrl.searchParams.set('checkout[custom_data][user_id]', user.id);
-        checkoutUrl.searchParams.set('checkout[custom_data][plan_id]', planId);
-        checkoutUrl.searchParams.set('checkout[custom_data][is_annual]', isAnnual ? 'true' : 'false');
-        checkoutUrl.searchParams.set('checkout[custom_data][variant_id]', checkoutData.variantId);
+        // We construct the URL query parameters manually to prevent the square brackets (`[` and `]`) 
+        // from being URL-encoded (e.g. `%5B` and `%5D`).
+        // Lemon Squeezy checkouts are known to return a 404 Not Found error when brackets inside 
+        // custom parameter keys (like `checkout[custom_data][...]`) are URL-encoded.
+        // Additionally, we use only the official `checkout[custom_data]` namespace to avoid confusing the parser.
+        const params = [
+          `checkout[email]=${encodeURIComponent(user.email)}`,
+          `checkout[custom_data][user_id]=${encodeURIComponent(user.id)}`,
+          `checkout[custom_data][plan_id]=${encodeURIComponent(planId)}`,
+          `checkout[custom_data][is_annual]=${encodeURIComponent(isAnnual ? 'true' : 'false')}`,
+          `checkout[custom_data][variant_id]=${encodeURIComponent(checkoutData.variantId)}`
+        ];
+
+        const finalCheckoutUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.join('&');
 
         // Instant redirect bypasses any iOS thread delays or popup blockers
-        window.location.assign(checkoutUrl.toString());
+        window.location.assign(finalCheckoutUrl);
       } catch (error) {
         console.error("Failed to construct Lemon Squeezy URL:", error);
       }
