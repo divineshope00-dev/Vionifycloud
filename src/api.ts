@@ -69,12 +69,33 @@ apiRouter.post('/webhook/lemonsqueezy', express.raw({ type: 'application/json' }
     console.log("Étape 2 réussie : Corps du webhook parsé avec succès !");
     console.log('Received Lemon Squeezy Webhook event:', eventName, 'with custom_data:', customData);
 
-    if (!customData || !customData.user_id) {
-      console.warn('Lemon Squeezy Webhook received without user_id in custom data, skipping user activation');
-      return res.status(200).send('Webhook received (ignored - no user_id)');
+    let userId = customData?.user_id;
+
+    if (!userId) {
+      const userEmail = payload.data?.attributes?.user_email;
+      if (userEmail) {
+        console.log(`[Webhook] No user_id found in custom_data. Attempting database lookup for email: ${userEmail}`);
+        const { data: matchedUser, error: lookupError } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+
+        if (lookupError) {
+          console.error('[Webhook] Error looking up user by email:', lookupError);
+        } else if (matchedUser) {
+          userId = matchedUser.id;
+          console.log(`[Webhook] Successfully resolved user_id: ${userId} for email: ${userEmail}`);
+        } else {
+          console.warn(`[Webhook] No user found in database with email: ${userEmail}`);
+        }
+      }
     }
 
-    const userId = customData.user_id;
+    if (!userId) {
+      console.warn('Lemon Squeezy Webhook received without user_id in custom data, and fallback email lookup yielded no user. Skipping activation.');
+      return res.status(200).send('Webhook received (ignored - no user_id or matching email)');
+    }
     
     // Resolve variant ID from either payload attributes or custom_data
     const variantIdFromAttr = payload.data?.attributes?.variant_id?.toString();
