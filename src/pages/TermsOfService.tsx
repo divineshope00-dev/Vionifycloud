@@ -8,7 +8,7 @@ export default function TermsOfService() {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-[100dvh] bg-black text-white p-6 md:p-8 max-w-3xl mx-auto">
+    <div className="h-[100dvh] overflow-y-auto bg-black text-white p-6 md:p-8 max-w-3xl mx-auto pb-16 scroll-smooth">
       <button 
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors font-medium mb-8"

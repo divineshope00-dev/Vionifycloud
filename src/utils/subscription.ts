@@ -37,9 +37,9 @@ export const isSubscriptionExpired = (user: User) => {
 export const canAccessContent = (user: User) => {
   if (user.type === 'particulier') return true;
   
-  // Entreprise users need active trial or active subscription
+  // Entreprise users need active trial or active subscription (unexpired)
   const trialActive = !isTrialExpired(user);
-  const subscriptionActive = user.subscriptionStatus === 'active';
+  const subscriptionActive = user.subscriptionStatus === 'active' && !isSubscriptionExpired(user);
   
   return trialActive || subscriptionActive;
 };

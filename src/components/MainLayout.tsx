@@ -42,7 +42,7 @@ export default function MainLayout() {
     
     const currentUser = db.getCurrentUser();
     if (!currentUser) {
-      if (location.pathname.startsWith('/app/video/')) {
+      if (location.pathname.startsWith('/app/video/') || location.pathname.startsWith('/app/entreprise/')) {
         const guestUser = {
           id: 'guest',
           type: 'particulier',

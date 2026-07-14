@@ -27,6 +27,7 @@ import TermsOfService from './pages/TermsOfService';
 import Notice from './pages/Notice';
 import NoticeEntreprise from './pages/NoticeEntreprise';
 import ResetPassword from './pages/ResetPassword';
+import Contact from './pages/Contact';
 import InstallPrompt from './components/InstallPrompt';
 import SplashScreen from './components/SplashScreen';
 import SubscriptionGuard from './components/SubscriptionGuard';
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="premium" element={<Premium />} />
             <Route path="club" element={<Club />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
           </Route>
         </Routes>
       </Router>

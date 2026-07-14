@@ -240,6 +240,96 @@ apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Endpoint for contact form submission
+apiRouter.post('/contact', async (req, res) => {
+  try {
+    const { email, message } = req.body;
+    if (!email || !message) {
+      return res.status(400).json({ error: 'Email and message are required' });
+    }
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY is not configured in environment variables');
+      return res.status(503).json({ error: "La clé RESEND_API_KEY n'est pas configurée dans les variables d'environnement." });
+    }
+
+    // Call Resend API to send the notification to support admin
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Support Vionify <onboarding@resend.dev>',
+        to: 'vionify.cloud@gmail.com',
+        subject: `[Vionify Support] Nouveau message de ${email}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e4e4e7; border-radius: 12px; background-color: #ffffff; color: #18181b;">
+            <h2 style="color: #7c3aed; margin-top: 0; border-bottom: 1px solid #f4f4f5; padding-bottom: 12px;">Nouveau message de support Vionify</h2>
+            <p style="margin-top: 16px;"><strong>Utilisateur :</strong> <a href="mailto:${email}" style="color: #7c3aed; text-decoration: none;">${email}</a></p>
+            <p><strong>Date :</strong> ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}</p>
+            <div style="margin-top: 20px; padding: 15px; border-radius: 8px; border: 1px solid #e4e4e7; background-color: #fafafa; white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #27272a;">${message}</div>
+            <div style="margin-top: 30px; font-size: 12px; color: #a1a1aa; text-align: center; border-top: 1px solid #f4f4f5; padding-top: 12px;">
+              Ce message a été envoyé depuis l'application Vionify.
+            </div>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Resend API returned an error:', response.status, errorData);
+      return res.status(response.status).json({
+        error: "Erreur lors de l'envoi du message via Resend",
+        details: errorData,
+      });
+    }
+
+    // Try sending a receipt confirmation to the user (optional, catching any sandbox issues gracefully)
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Support Vionify <onboarding@resend.dev>',
+          to: email,
+          subject: 'Confirmation de réception - Support Vionify',
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e4e4e7; border-radius: 12px; background-color: #ffffff; color: #18181b;">
+              <h2 style="color: #7c3aed; margin-top: 0; border-bottom: 1px solid #f4f4f5; padding-bottom: 12px;">Nous avons bien reçu votre message</h2>
+              <p>Bonjour,</p>
+              <p>Merci d'avoir contacté le support officiel de Vionify. Nous vous confirmons que votre demande a bien été transmise à notre équipe.</p>
+              <p>Voici un récapitulatif de votre message :</p>
+              <div style="margin-top: 20px; padding: 15px; border-radius: 8px; border: 1px solid #e4e4e7; background-color: #fafafa; white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #27272a;">${message}</div>
+              <p style="margin-top: 20px;">Notre équipe s'engage à vous répondre sous 24 heures.</p>
+              <p>Merci pour votre confiance !</p>
+              <p style="margin-top: 20px; font-weight: bold; color: #7c3aed;">L'équipe Vionify</p>
+              <div style="margin-top: 30px; font-size: 12px; color: #a1a1aa; text-align: center; border-top: 1px solid #f4f4f5; padding-top: 12px;">
+                Ceci est un e-mail automatique, merci de ne pas y répondre directement.
+              </div>
+            </div>
+          `,
+        }),
+      }).catch((err) => {
+        console.warn('Silently failed to send user confirmation email (possibly unverified sandbox email):', err);
+      });
+    } catch (confError) {
+      console.warn('Silent confirmation email error:', confError);
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error: any) {
+    console.error('Contact API Exception:', error);
+    return res.status(500).json({ error: 'Exception interne', message: error?.message || String(error) });
+  }
+});
+
 // Video generation routes (mocking for now as per previous server.ts logic)
 apiRouter.post('/moderate-video', async (req, res) => {
   console.log('Moderating video:', req.body.videoId);

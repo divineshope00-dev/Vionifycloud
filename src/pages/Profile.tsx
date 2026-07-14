@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { LogOut, Globe, FileText, Shield, User as UserIcon, Camera, X, BarChart2, Loader2, Star, Users, Info } from 'lucide-react';
+import { LogOut, Globe, FileText, Shield, User as UserIcon, Camera, X, BarChart2, Loader2, Star, Users, Info, MessageCircle } from 'lucide-react';
 import { db, User } from '../services/supabaseService';
 import { countries } from '../utils/countries';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -204,8 +204,17 @@ export default function Profile() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-white">{t('profile.plan')} {user.subscription.plan}</p>
-                  <p className="text-sm text-zinc-400">{t('profile.renewal')} {new Date(user.subscription.endDate).toLocaleDateString()}</p>
+                  <p className="font-medium text-white capitalize">
+                    {t('profile.plan')} : {user.subscription.plan} ({user.subscription.isAnnual ? (language === 'fr' ? 'Annuel' : 'Yearly') : (language === 'fr' ? 'Mensuel' : 'Monthly')})
+                  </p>
+                  <p className="text-sm text-zinc-400">
+                    {isSubscriptionExpired(user) ? t('profile.endsOn') : t('profile.renewal')}{' '}
+                    {new Date(user.subscription.endDate).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </p>
                 </div>
                 {isSubscriptionExpired(user) ? (
                   <button 
@@ -315,6 +324,11 @@ export default function Profile() {
             </button>
           </>
         )}
+
+        <button onClick={() => navigate('/app/contact')} className="w-full p-4 border-t border-zinc-800 flex items-center gap-3 hover:bg-zinc-800 transition-colors">
+          <MessageCircle className="w-5 h-5 text-zinc-400" />
+          <span className="font-medium">{t('profile.support')}</span>
+        </button>
       </div>
 
       {/* Logout */}

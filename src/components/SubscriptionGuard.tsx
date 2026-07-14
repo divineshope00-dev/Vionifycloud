@@ -57,19 +57,19 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
 
 
   return (
-      <AnimatePresence>
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
-        />
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-4 md:p-6 overflow-y-auto"
+      >
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 20, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:bottom-8 md:w-full md:max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 z-[70] shadow-2xl"
+          className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-2xl"
         >
           <div className="flex flex-col items-center text-center mt-2">
             <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
@@ -123,7 +123,16 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
                 </>
               )}
             </button>
-             {checkStatus === 'failed' && (
+
+            {/* Back to Profile Button */}
+            <button
+              onClick={() => navigate('/app/profile')}
+              className="w-full mt-3 py-3 rounded-2xl border border-zinc-800 hover:border-zinc-700 bg-zinc-950 hover:bg-zinc-900/50 text-sm font-medium text-zinc-400 hover:text-white transition-all active:scale-98"
+            >
+              {language === 'fr' ? 'Retourner à mon profil' : 'Back to Profile'}
+            </button>
+
+            {checkStatus === 'failed' && (
               <div className="w-full mt-4 p-3 rounded-2xl bg-zinc-950 border border-zinc-800 text-left">
                 <p className="text-xs text-red-400/80 leading-relaxed">
                   {language === 'fr'
@@ -134,6 +143,7 @@ export default function SubscriptionGuard({ user, children }: SubscriptionGuardP
             )}
           </div>
         </motion.div>
-      </AnimatePresence>
+      </motion.div>
+    </AnimatePresence>
   );
 }

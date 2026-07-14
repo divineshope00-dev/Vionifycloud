@@ -8,7 +8,7 @@ export default function NoticeEntreprise() {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-[100dvh] bg-black text-white relative">
+    <div className="h-[100dvh] overflow-y-auto bg-black text-white relative scroll-smooth pb-16">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-zinc-800 p-4 pt-[calc(env(safe-area-inset-top)+1rem)] flex items-center justify-between">
         <div className="flex items-center gap-3">

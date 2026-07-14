@@ -314,47 +314,61 @@ export default function Premium() {
 
       {isEntreprise ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plansEntreprise.map((plan, i) => (
-            <div 
-              key={plan.name} 
-              className={`bg-zinc-900 border rounded-3xl p-8 flex flex-col ${i === 1 ? 'border-purple-500 shadow-2xl shadow-purple-900/20 relative' : 'border-zinc-800'}`}
-            >
-              {i === 1 && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
-                  {t('premium.popular')}
-                </div>
-              )}
-              <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold">{calculatePrice(plan.monthly)}€</span>
-                <span className="text-zinc-500">/{isAnnual ? t('premium.year') : t('premium.month')}</span>
-              </div>
-              
-              <ul className="space-y-4 mb-8 flex-1">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-zinc-300">
-                    <Check className="w-5 h-5 text-purple-500 shrink-0" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+          {plansEntreprise.map((plan, i) => {
+            const isCurrentPlan = user.subscription && 
+              user.subscription.plan === plan.id && 
+              user.subscriptionStatus === 'active' && 
+              !!user.subscription.isAnnual === isAnnual;
 
-              <button 
-                onClick={() => handleSubscribe(plan.id, getPriceId('entreprise', isAnnual, plan.id))}
-                disabled={isProcessing}
-                className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${i === 1 ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-zinc-800 hover:bg-zinc-700 text-white'}`}
+            return (
+              <div 
+                key={plan.name} 
+                className={`bg-zinc-900 border rounded-3xl p-8 flex flex-col ${i === 1 ? 'border-purple-500 shadow-2xl shadow-purple-900/20 relative' : 'border-zinc-800'}`}
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    {t('premium.processing')}
-                  </>
-                ) : (
-                  t('premium.choosePlan')
+                {i === 1 && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
+                    {t('premium.popular')}
+                  </div>
                 )}
-              </button>
-            </div>
-          ))}
+                <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                <div className="mb-6">
+                  <span className="text-4xl font-extrabold">{calculatePrice(plan.monthly)}€</span>
+                  <span className="text-zinc-500">/{isAnnual ? t('premium.year') : t('premium.month')}</span>
+                </div>
+                
+                <ul className="space-y-4 mb-8 flex-1">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-zinc-300">
+                      <Check className="w-5 h-5 text-purple-500 shrink-0" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {isCurrentPlan ? (
+                  <div className="w-full py-4 rounded-xl font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center gap-2">
+                    <Check className="w-5 h-5 text-purple-400 shrink-0" />
+                    <span>{t('premium.current')}</span>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleSubscribe(plan.id, getPriceId('entreprise', isAnnual, plan.id))}
+                    disabled={isProcessing}
+                    className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${i === 1 ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-zinc-800 hover:bg-zinc-700 text-white'}`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {t('premium.processing')}
+                      </>
+                    ) : (
+                      t('premium.choosePlan')
+                    )}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="max-w-2xl mx-auto">
