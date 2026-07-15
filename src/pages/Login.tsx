@@ -58,16 +58,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center p-6 text-white relative">
+    <div className="h-screen w-full overflow-y-auto bg-black flex flex-col items-center justify-start md:justify-center py-12 px-6 text-white relative">
       <button 
         onClick={() => navigate('/')}
-        className="absolute top-8 left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+        className="absolute top-8 left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors z-10"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
       </button>
 
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8 mt-12 md:mt-0">
         <h1 className="text-3xl font-bold text-center mb-6">
           Welcome Back to <span className="text-purple-500">Vionify</span>
         </h1>

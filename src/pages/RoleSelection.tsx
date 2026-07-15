@@ -9,7 +9,7 @@ export default function RoleSelection() {
   const redirectQuery = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
 
   return (
-    <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center p-6 text-white">
+    <div className="h-screen w-full overflow-y-auto bg-black flex flex-col items-center justify-start md:justify-center py-12 px-6 text-white">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
