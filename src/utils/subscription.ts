@@ -14,7 +14,7 @@ export const isTrialExpired = (user: User) => {
   if (user.type === 'particulier') {
     trialEnds.setMonth(trialStart.getMonth() + 3);
   } else {
-    trialEnds.setDate(trialStart.getDate() + 7);
+    trialEnds.setDate(trialStart.getDate() + 30);
   }
   
   return now > trialEnds.getTime();

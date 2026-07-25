@@ -78,7 +78,6 @@ export default function PrivacyPolicy() {
             <li>{t('policy.privacy.rights.opposition')}</li>
           </ul>
           <div className="mt-4 space-y-1">
-            <p><strong>{t('policy.privacy.rights.contact.label')}</strong> {t('policy.privacy.rights.contact.desc')}</p>
             <p><strong>{t('policy.privacy.rights.delay.label')}</strong> {t('policy.privacy.rights.delay.desc')}</p>
           </div>
         </section>

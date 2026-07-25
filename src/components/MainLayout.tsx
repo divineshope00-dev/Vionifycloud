@@ -85,7 +85,7 @@ export default function MainLayout() {
               endDate = new Date(currentUser.trialEndsAt);
             } else if (currentUser.trialStartDate) {
               endDate = new Date(currentUser.trialStartDate);
-              endDate.setDate(endDate.getDate() + 7);
+              endDate.setDate(endDate.getDate() + 30);
             }
           }
 
@@ -194,7 +194,8 @@ export default function MainLayout() {
     setShowGuestWarning(false);
     localStorage.removeItem('vionify_user');
     window.dispatchEvent(new Event('user-changed'));
-    navigate('/role-selection');
+    const currentPath = location.pathname + location.search;
+    navigate(`/role-selection?redirect=${encodeURIComponent(currentPath)}`);
   };
 
   if (!user) return null;

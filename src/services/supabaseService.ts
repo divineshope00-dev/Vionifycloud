@@ -110,7 +110,7 @@ const isActiveEntreprise = (data: any): boolean => {
   } else if (data.trial_start_date) {
     const trialStart = new Date(data.trial_start_date);
     const trialEnds = new Date(trialStart);
-    trialEnds.setDate(trialStart.getDate() + 7);
+    trialEnds.setDate(trialStart.getDate() + 30);
     trialActive = now <= trialEnds.getTime();
   } else {
     // If we don't have trial info but it's an entreprise, we default to true to not block everything 
@@ -258,7 +258,8 @@ const mapVideo = (data: any): Video => {
   const rawUrl = data.video_url || '';
   const finalUrl = getBunnyUrl(rawUrl);
   
-  const entrepriseData = data.entreprise || data.users;
+  const rawEntrepriseData = data.entreprise || data.users;
+  const entrepriseData = Array.isArray(rawEntrepriseData) ? rawEntrepriseData[0] : rawEntrepriseData;
 
   // Handle nested products
   let products: Product[] = [];
@@ -271,8 +272,8 @@ const mapVideo = (data: any): Video => {
   return {
     id: data.id,
     entrepriseId: data.entreprise_id,
-    entrepriseName: data.entreprise_name,
-    entreprisePic: data.entreprise_pic,
+    entrepriseName: entrepriseData?.name || data.entreprise_name,
+    entreprisePic: entrepriseData?.profile_pic || data.entreprise_pic,
     entrepriseMonthlyClients: entrepriseData?.peak_monthly_clients || data.entreprise_peak_monthly_clients || 0,
     entrepriseCountry: entrepriseData?.country || data.entreprise_country || '',
     videoUrl: finalUrl || rawUrl,
@@ -406,7 +407,7 @@ export const db = {
     if (user.type === 'particulier') {
       trialEnds.setMonth(now.getMonth() + 3);
     } else {
-      trialEnds.setDate(now.getDate() + 7);
+      trialEnds.setDate(now.getDate() + 30);
     }
 
     // 2. Create User Profile in 'users' table
@@ -508,7 +509,7 @@ export const db = {
           if (userType === 'particulier') {
             trialEnds.setMonth(now.getMonth() + 3);
           } else {
-            trialEnds.setDate(now.getDate() + 7);
+            trialEnds.setDate(now.getDate() + 30);
           }
 
           const { data: newProfile, error: insertError } = await safeRequest(supabase
@@ -677,6 +678,28 @@ export const db = {
 
     if (!data) {
       throw new Error('User not found and failed to create/update via upsert');
+    }
+    
+    // If the user is an entreprise and they updated their name or profilePic, update their videos as well
+    if (currentUser.type === 'entreprise' && (updates.name !== undefined || updates.profilePic !== undefined)) {
+      const videoUpdates: any = {};
+      if (updates.name !== undefined) videoUpdates.entreprise_name = updates.name;
+      if (updates.profilePic !== undefined) videoUpdates.entreprise_pic = updates.profilePic;
+      
+      try {
+        const { error: videoUpdateError } = await supabase
+          .from('videos')
+          .update(videoUpdates)
+          .eq('entreprise_id', currentUser.id);
+        
+        if (videoUpdateError) {
+          console.error('[updateUser] Failed to update enterprise name/pic on their videos:', videoUpdateError);
+        } else {
+          console.log('[updateUser] Successfully updated enterprise name/pic on all their videos');
+        }
+      } catch (err) {
+        console.error('[updateUser] Exception updating enterprise videos:', err);
+      }
     }
     
     const updatedUser = mapUser(data);
@@ -897,7 +920,7 @@ export const db = {
   getVideos: async (limit?: number) => {
     let query = supabase
       .from('videos')
-      .select('*')
+      .select('*, users!fk_videos_entreprise(*)')
       .order('created_at', { ascending: false });
 
     if (limit) {
@@ -919,7 +942,7 @@ export const db = {
   getVideo: async (id: string, userId?: string) => {
     const { data: rawVideo, error } = await supabase
       .from('videos')
-      .select('*')
+      .select('*, users!fk_videos_entreprise(*)')
       .eq('id', id)
       .maybeSingle();
 
@@ -1051,21 +1074,21 @@ export const db = {
       // Direct, fast flat queries:
       const broadOrQuery = supabase
         .from('videos')
-        .select('*')
+        .select('*, users!fk_videos_entreprise(*)')
         .or(`title.ilike.%${searchTerm}%,entreprise_name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
         .order('created_at', { ascending: false })
         .limit(100);
 
       const titleQuery = supabase
         .from('videos')
-        .select('*')
+        .select('*, users!fk_videos_entreprise(*)')
         .ilike('title', `%${searchTerm}%`)
         .order('created_at', { ascending: false })
         .limit(100);
 
       const recentQuery = supabase
         .from('videos')
-        .select('*')
+        .select('*, users!fk_videos_entreprise(*)')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -1145,7 +1168,7 @@ export const db = {
   getVideosByEntreprise: async (entrepriseId: string, userId?: string) => {
     const { data: rawVideos, error } = await safeRequest(supabase
       .from('videos')
-      .select('*')
+      .select('*, users!fk_videos_entreprise(*)')
       .eq('entreprise_id', entrepriseId)
       .order('created_at', { ascending: false }));
 
@@ -1593,13 +1616,13 @@ export const db = {
       .from('videos')
       .update({ likes: newLikes })
       .eq('id', videoId)
-      .select('*')
+      .select('*, users!fk_videos_entreprise(*)')
       .maybeSingle();
 
     if (updateError || !updatedVideo) {
       console.error('Supabase toggleLike update error:', updateError);
       // Let's at least get the full video so we don't return an empty husk
-      const { data: fullVideo } = await supabase.from('videos').select('*').eq('id', videoId).maybeSingle();
+      const { data: fullVideo } = await supabase.from('videos').select('*, users!fk_videos_entreprise(*)').eq('id', videoId).maybeSingle();
       if (!fullVideo) return null;
       fullVideo.likes = newLikes;
       const withProducts = await attachProductsToVideos([fullVideo]);

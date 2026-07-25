@@ -125,7 +125,6 @@ export default function TermsOfService() {
         <div className="pt-8 border-t border-zinc-800 text-sm text-zinc-500 space-y-1">
           <p>{t('policy.terms.footer.date')}</p>
           <p>{t('policy.terms.footer.location')}</p>
-          <p>{t('policy.terms.footer.contact')}</p>
         </div>
       </div>
     </div>

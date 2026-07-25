@@ -108,7 +108,7 @@ export const translations = {
     'profile.plan': 'Plan',
     'profile.renewal': 'Renouvellement le',
     'profile.active': 'Actif',
-    'profile.trial.entreprise': 'Essai gratuit (7 jours)',
+    'profile.trial.entreprise': 'Essai gratuit (30 jours)',
     'profile.trial.particulier': 'Accès Club',
     'profile.started': 'Commencé le',
     'profile.endsOn': 'Prend fin le',
@@ -139,10 +139,10 @@ export const translations = {
     // Premium
     'premium.title': 'Passez à la vitesse supérieure',
     'premium.subtitle': 'Choisissez le plan qui correspond à vos besoins.',
-    'premium.trial.entreprise': '7 jours d\'essai gratuit',
+    'premium.trial.entreprise': '30 jours d\'essai gratuit',
     'premium.trial.particulier': 'Accès Club',
     'premium.expired.title': 'Période d\'essai terminée',
-    'premium.expired.desc.entreprise': 'Votre période d\'essai de 7 jours a expiré. Pour continuer à utiliser toutes les fonctionnalités de Vionify, veuillez choisir un abonnement ci-dessous.',
+    'premium.expired.desc.entreprise': 'Votre période d\'essai de 30 jours a expiré. Pour continuer à utiliser toutes les fonctionnalités de Vionify, veuillez choisir un abonnement ci-dessous.',
     'premium.expired.desc.particulier': 'Le fil d\'actualité est gratuit pour tous. Cependant, pour accéder au Club Privé Vionify et bénéficier de ses avantages exclusifs (3,99 €/mois), veuillez choisir l\'abonnement ci-dessous.',
     'premium.monthly': 'Mensuel',
     'premium.yearly': 'Annuel',
@@ -232,7 +232,7 @@ export const translations = {
 
     'policy.privacy.use.title': 'Utilisation des Données',
     'policy.privacy.use.intro': 'Vos informations servent uniquement à :',
-    'policy.privacy.use.manage': 'Gérer votre compte (authentification Supabase, essai 7 jours entreprises, accès Club particuliers, abonnements).',
+    'policy.privacy.use.manage': 'Gérer votre compte (authentification Supabase, essai 30 jours entreprises, accès Club particuliers, abonnements).',
     'policy.privacy.use.display': 'Afficher du contenu personnalisé (vos vidéos en entreprise, fil d\'actualité/favoris en particulier).',
     'policy.privacy.use.payment': 'Traiter paiements et vérifier statut abonné (Premium bloqué post-essai).',
     'policy.privacy.use.improve': 'Améliorer la plateforme (statistiques anonymes : vues par pays/catégorie).',
@@ -255,8 +255,8 @@ export const translations = {
     'policy.privacy.rights.intro': 'Conformément au RGPD :',
     'policy.privacy.rights.access': 'Accès, rectification, suppression via menu Profil.',
     'policy.privacy.rights.opposition': 'Opposition, portabilité (export JSON email).',
-    'policy.privacy.rights.contact.label': 'Contact :',
-    'policy.privacy.rights.contact.desc': 'support@vionify.com (Bordeaux, France).',
+    'policy.privacy.rights.contact.label': '',
+    'policy.privacy.rights.contact.desc': '',
     'policy.privacy.rights.delay.label': 'Délai réponse :',
     'policy.privacy.rights.delay.desc': '1 mois.',
 
@@ -282,14 +282,14 @@ export const translations = {
     'policy.privacy.footer.location': 'Vionify – Bordeaux, France.',
 
     'policy.terms.title': 'Conditions d\'Utilisation de Vionify',
-    'policy.terms.intro': 'Bienvenue sur Vionify, la plateforme PWA pour vidéos produits courtes (16:9, max 60 secondes). En vous inscrivant (Entreprise ou Particulier) et en utilisant nos services, vous acceptez ces Conditions Générales d\'Utilisation (CGU), la Politique de Confidentialité, ainsi que les fonctionnalités décrites (essai gratuit 7 jours pour entreprises, fil d\'actualité gratuit pour particuliers, abonnement au Club Privé Vionify optionnel pour avantages exclusifs).',
+    'policy.terms.intro': 'Bienvenue sur Vionify, la plateforme PWA pour vidéos produits courtes (16:9, max 60 secondes). En vous inscrivant (Entreprise ou Particulier) et en utilisant nos services, vous acceptez ces Conditions Générales d\'Utilisation (CGU), la Politique de Confidentialité, ainsi que les fonctionnalités décrites (essai gratuit 30 jours pour entreprises, fil d\'actualité gratuit pour particuliers, abonnement au Club Privé Vionify optionnel pour avantages exclusifs).',
     
     'policy.terms.1.title': '1. Description du Service',
     'policy.terms.1.p1': 'Vionify permet :',
     'policy.terms.1.l1': 'Entreprises : Publier vidéos produits (titre, prix, réduction, lien redirect, catégorie, description), gérer ses publications (Accueil, Publier).',
     'policy.terms.1.l2': 'Particuliers : Découvrir vidéos (fil d\'actualité gratuit), ajouter favoris (30 jours auto-suppression - Membres Club), commenter, liker, partager.',
     'policy.terms.1.l3': 'Menus communs : Premium (abonnements), Profil (infos modifiables, langues FR/EN, déconnexion).',
-    'policy.terms.1.p2': 'Essai gratuit 7 jours (entreprises) → paywall strict. Fil d\'actualité gratuit (particuliers), abonnement 3,99€/mois pour accès au Club Privé Vionify.',
+    'policy.terms.1.p2': 'Essai gratuit 30 jours (entreprises) → paywall strict. Fil d\'actualité gratuit (particuliers), abonnement 3,99€/mois pour accès au Club Privé Vionify.',
 
     'policy.terms.2.title': '2. Inscription et Comptes',
     'policy.terms.2.l1': 'Inscription obligatoire : email, nom, pays (tous pays monde), mot de passe, photo profil (entreprises), acceptation CGU/Confidentialité.',
@@ -298,7 +298,7 @@ export const translations = {
     'policy.terms.2.l4': 'Faux comptes/fraude = suspension permanente.',
 
     'policy.terms.3.title': '3. Abonnements et Paiements',
-    'policy.terms.3.p1': 'Essai gratuit : 7 jours (entreprises) dès inscription. Pour les particuliers, le fil d\'actualité est gratuit, mais l\'accès au Club Privé Vionify nécessite un abonnement :',
+    'policy.terms.3.p1': 'Essai gratuit : 30 jours (entreprises) dès inscription. Pour les particuliers, le fil d\'actualité est gratuit, mais l\'accès au Club Privé Vionify nécessite un abonnement :',
     'policy.terms.3.l1': 'Entreprises : Accueil/Publier bloqués.',
     'policy.terms.3.l2': 'Particuliers : Accueil/Bibliothèque bloqués.',
     'policy.terms.3.p2': 'Tarifs Entreprises (Stripe/Paddle) :',
@@ -344,7 +344,7 @@ export const translations = {
 
     'policy.terms.footer.date': 'Dernière mise à jour : 12 mars 2026',
     'policy.terms.footer.location': 'Vionify – Bordeaux, France',
-    'policy.terms.footer.contact': 'Contact : support@vionify.com',
+    'policy.terms.footer.contact': '',
 
     'policy.close': 'Fermer',
 
@@ -366,8 +366,8 @@ export const translations = {
     'onboarding.welcome.feat1': 'Publication de vidéos avec liens intégrés',
     'onboarding.welcome.feat2': 'Liens d\'achat directs sous la vidéo',
     'onboarding.trial.title': 'Offre Spéciale Entreprise',
-    'onboarding.trial.message': 'Profitez de 7 jours d\'essai gratuit sur Vionify !',
-    'onboarding.trial.desc': 'Testez toutes nos fonctionnalités premium sans engagement pendant une semaine entière.',
+    'onboarding.trial.message': 'Profitez de 30 jours d\'essai gratuit sur Vionify !',
+    'onboarding.trial.desc': 'Testez toutes nos fonctionnalités premium sans engagement pendant 30 jours.',
     'onboarding.next': 'Suivant',
     'onboarding.access': 'Accéder à mon espace',
     
@@ -572,7 +572,7 @@ export const translations = {
     'profile.plan': 'Plan',
     'profile.renewal': 'Renewal on',
     'profile.active': 'Active',
-    'profile.trial.entreprise': 'Free trial (7 days)',
+    'profile.trial.entreprise': 'Free trial (30 days)',
     'profile.trial.particulier': 'Club Access',
     'profile.started': 'Started on',
     'profile.endsOn': 'Ends on',
@@ -603,10 +603,10 @@ export const translations = {
     // Premium
     'premium.title': 'Take it to the next level',
     'premium.subtitle': 'Choose the plan that fits your needs.',
-    'premium.trial.entreprise': '7-day free trial',
+    'premium.trial.entreprise': '30-day free trial',
     'premium.trial.particulier': 'Club Access',
     'premium.expired.title': 'Trial period ended',
-    'premium.expired.desc.entreprise': 'Your 7-day trial period has expired. To continue using all Vionify features, please choose a subscription below.',
+    'premium.expired.desc.entreprise': 'Your 30-day trial period has expired. To continue using all Vionify features, please choose a subscription below.',
     'premium.expired.desc.particulier': 'The news feed is free for everyone. However, to access the Vionify Private Club and enjoy its exclusive benefits (€3.99/month), please choose the subscription below.',
     'premium.monthly': 'Monthly',
     'premium.yearly': 'Yearly',
@@ -696,7 +696,7 @@ export const translations = {
 
     'policy.privacy.use.title': 'Data Usage',
     'policy.privacy.use.intro': 'Your information is used exclusively to:',
-    'policy.privacy.use.manage': 'Manage your account (Supabase authentication, 7-day business trial, individual Club access, subscriptions).',
+    'policy.privacy.use.manage': 'Manage your account (Supabase authentication, 30-day business trial, individual Club access, subscriptions).',
     'policy.privacy.use.display': 'Display personalized content (your videos for businesses, news feed/favorites for individuals).',
     'policy.privacy.use.payment': 'Process payments and verify subscriber status (Premium blocked post-trial).',
     'policy.privacy.use.improve': 'Improve the platform (anonymous statistics: views by country/category).',
@@ -719,8 +719,8 @@ export const translations = {
     'policy.privacy.rights.intro': 'In accordance with the GDPR:',
     'policy.privacy.rights.access': 'Access, rectification, deletion via Profile menu.',
     'policy.privacy.rights.opposition': 'Opposition, portability (JSON email export).',
-    'policy.privacy.rights.contact.label': 'Contact:',
-    'policy.privacy.rights.contact.desc': 'support@vionify.com (Bordeaux, France).',
+    'policy.privacy.rights.contact.label': '',
+    'policy.privacy.rights.contact.desc': '',
     'policy.privacy.rights.delay.label': 'Response time:',
     'policy.privacy.rights.delay.desc': '1 month.',
 
@@ -746,14 +746,14 @@ export const translations = {
     'policy.privacy.footer.location': 'Vionify – Bordeaux, France.',
 
     'policy.terms.title': 'Vionify Terms of Service',
-    'policy.terms.intro': 'Welcome to Vionify, the PWA platform for short product videos (16:9, max 60 seconds). By registering (Business or Individual) and using our services, you agree to these General Terms of Use (ToS), the Privacy Policy, as well as the features described (7-day free trial for businesses, free news feed for individuals, optional Vionify Private Club subscription for exclusive benefits).',
+    'policy.terms.intro': 'Welcome to Vionify, the PWA platform for short product videos (16:9, max 60 seconds). By registering (Business or Individual) and using our services, you agree to these General Terms of Use (ToS), the Privacy Policy, as well as the features described (30-day free trial for businesses, free news feed for individuals, optional Vionify Private Club subscription for exclusive benefits).',
     
     'policy.terms.1.title': '1. Service Description',
     'policy.terms.1.p1': 'Vionify allows:',
     'policy.terms.1.l1': 'Businesses: Publish product videos (title, price, discount, redirect link, category, description), manage publications (Home, Publish).',
     'policy.terms.1.l2': 'Individuals: Discover videos (free news feed), add favorites (30 days auto-delete - Club Members), comment, like, share.',
     'policy.terms.1.l3': 'Common menus: Premium (subscriptions), Profile (editable info, FR/EN languages, logout).',
-    'policy.terms.1.p2': '7-day free trial (businesses) → strict paywall. Free news feed (individuals), €3.99/month subscription for access to the Vionify Private Club.',
+    'policy.terms.1.p2': '30-day free trial (businesses) → strict paywall. Free news feed (individuals), €3.99/month subscription for access to the Vionify Private Club.',
 
     'policy.terms.2.title': '2. Registration and Accounts',
     'policy.terms.2.l1': 'Mandatory registration: email, name, country (all countries worldwide), password, profile photo (businesses), acceptance of ToS/Privacy.',
@@ -762,7 +762,7 @@ export const translations = {
     'policy.terms.2.l4': 'Fake accounts/fraud = permanent suspension.',
 
     'policy.terms.3.title': '3. Subscriptions and Payments',
-    'policy.terms.3.p1': 'Free trial: 7 days (businesses) from registration. For individuals, the news feed is free, but access to the Vionify Private Club requires a subscription:',
+    'policy.terms.3.p1': 'Free trial: 30 days (businesses) from registration. For individuals, the news feed is free, but access to the Vionify Private Club requires a subscription:',
     'policy.terms.3.l1': 'Businesses: Home/Publish blocked.',
     'policy.terms.3.l2': 'Individuals: Home/Library blocked.',
     'policy.terms.3.p2': 'Business Pricing (Stripe/Paddle):',
@@ -808,7 +808,7 @@ export const translations = {
 
     'policy.terms.footer.date': 'Last updated: March 12, 2026',
     'policy.terms.footer.location': 'Vionify – Bordeaux, France',
-    'policy.terms.footer.contact': 'Contact: support@vionify.com',
+    'policy.terms.footer.contact': '',
 
     'policy.close': 'Close',
 
@@ -830,8 +830,8 @@ export const translations = {
     'onboarding.welcome.feat1': 'Video publishing with integrated links',
     'onboarding.welcome.feat2': 'Direct purchase links under the video',
     'onboarding.trial.title': 'Special Business Offer',
-    'onboarding.trial.message': 'Enjoy a 7-day free trial on Vionify!',
-    'onboarding.trial.desc': 'Test all our premium features without commitment for a full week.',
+    'onboarding.trial.message': 'Enjoy a 30-day free trial on Vionify!',
+    'onboarding.trial.desc': 'Test all our premium features without commitment for a full month.',
     'onboarding.next': 'Next',
     'onboarding.access': 'Access my space',
     
