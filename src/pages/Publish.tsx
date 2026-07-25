@@ -5,6 +5,7 @@ import { db, User, Product } from '../services/supabaseService';
 import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { CATEGORIES } from '../constants';
+import { TranslationKey } from '../i18n/translations';
 
 import { supabase } from '../lib/supabase';
 
@@ -91,7 +92,7 @@ export default function Publish() {
       }
 
       if (file.size > 50 * 1024 * 1024) { // 50MB limit
-        setError('La vidéo dépasse 50Mo. Veuillez compresser votre vidéo (qualité min 720p).');
+        setError(t('publish.maxSizeLimit'));
         return;
       }
 
@@ -101,7 +102,7 @@ export default function Publish() {
       video.onloadedmetadata = () => {
         window.URL.revokeObjectURL(video.src);
         if (video.duration > 60) {
-          setError('La durée de la vidéo dépasse 60 secondes donc 1 minute.');
+          setError(t('publish.maxDurationLimit'));
           setVideoFile(null);
           setVideoPreview('');
         }
@@ -238,7 +239,7 @@ export default function Publish() {
                 muted
                 autoPlay
                 loop
-                onError={() => setError('Impossible de charger l\'aperçu de la vidéo. Le format n\'est peut-être pas supporté par votre appareil.')}
+                onError={() => setError(t('publish.unsupportedPreview'))}
               />
               <button 
                 type="button"
@@ -257,8 +258,8 @@ export default function Publish() {
             <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
               <Upload className="w-12 h-12 text-zinc-500 group-hover:text-purple-500 mb-4 transition-colors" />
               <p className="text-zinc-400 font-medium">{t('publish.clickToUpload')}</p>
-              <p className="text-zinc-500 text-sm mt-2">Maximum 60 secondes donc 1 minute, format MP4</p>
-              <p className="text-zinc-500 text-sm">Max 50Mo. Qualité min 720p. Si &gt; 50Mo, veuillez compresser la vidéo.</p>
+              <p className="text-zinc-500 text-sm mt-2">{t('publish.maxDurationHint')}</p>
+              <p className="text-zinc-500 text-sm">{t('publish.maxSizeHint')}</p>
               <input 
                 type="file" 
                 accept="video/mp4,video/x-m4v,video/*" 
@@ -269,9 +270,9 @@ export default function Publish() {
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
               <AlertCircle className="w-12 h-12 text-amber-500 mb-4" />
-              <p className="text-zinc-300 font-medium">Abonnement Premium Requis</p>
+              <p className="text-zinc-300 font-medium">{t('publish.premiumRequired')}</p>
               <p className="text-zinc-500 text-sm mt-2">
-                Vous n'avez pas l'abonnement standard pour importer des vidéos depuis votre appareil. {/* Vous pouvez publier des vidéos générées par IA via Vionify Video IA. */}
+                {t('publish.noSubscriptionStandard')} {/* Vous pouvez publier des vidéos générées par IA via Vionify Video IA. */}
               </p>
               {/* <button 
                 type="button"
@@ -341,9 +342,11 @@ export default function Publish() {
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             >
-              <option value="" disabled>Sélectionner une catégorie</option>
+              <option value="" disabled>{t('publish.selectCategory')}</option>
               {CATEGORIES.map(c => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c}>
+                  {t(`category.${c}` as TranslationKey)}
+                </option>
               ))}
             </select>
           </div>

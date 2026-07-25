@@ -1,7 +1,7 @@
 {
   "name": "Vionify",
   "short_name": "Vionify",
-  "description": "Let your video sell for you",
+  "description": "Vendez et achetez par la vidéo. Vionify : le pont entre les entreprises et les particuliers.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

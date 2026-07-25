@@ -1,6 +1,6 @@
 {
   "name": "Vionify",
-  "description": "Plateforme de vidéos produits 16:9 pour entreprises et particuliers. Connectée avec Supabase.",
+  "description": "Vendez et achetez par la vidéo. Vionify : le pont entre les entreprises et les particuliers.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

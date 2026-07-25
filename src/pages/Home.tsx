@@ -6,6 +6,7 @@ import { db, User, Video, Product, getBunnyUrl, VideoQuality } from '../services
 import { canAccessContent } from '../utils/subscription';
 import { useLanguage } from '../contexts/LanguageContext';
 import { CATEGORIES } from '../constants';
+import { TranslationKey } from '../i18n/translations';
 import { useAdaptiveQuality } from '../hooks/useAdaptiveQuality';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAndParseVast, fireTrackingUrl, VastAdData } from '../utils/vastPlayer';
@@ -1113,7 +1114,7 @@ export default function Home() {
                       : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
                   }`}
                 >
-                  {cat}
+                  {t(`category.${cat}` as TranslationKey)}
                 </button>
               ))}
             </div>
@@ -1518,9 +1519,11 @@ export default function Home() {
                     value={editFormData.category}
                     onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
                   >
-                    <option value="" disabled>Sélectionner une catégorie</option>
+                    <option value="" disabled>{t('publish.selectCategory')}</option>
                     {CATEGORIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {t(`category.${c}` as TranslationKey)}
+                      </option>
                     ))}
                   </select>
                 </div>
